@@ -242,6 +242,7 @@ export default function ExamReviewGame() {
       setCurrentLevelIdx(0);
       setCurrentStepIdx(0);
       setView('game');
+      setIsMenuOpen(false);
       localStorage.removeItem('sehs3313-exam-save-v5');
     }
   };
@@ -334,6 +335,14 @@ export default function ExamReviewGame() {
           >
             <BarChart2 className="w-5 h-5 text-purple-400" />
             查看成績報告
+          </button>
+
+          <button 
+            onClick={handleRestart}
+            className="w-full mt-2 p-4 rounded-xl border border-red-900/30 bg-red-950/20 hover:bg-red-900/40 text-red-400 transition-all flex items-center justify-center gap-2"
+          >
+            <RefreshCw className="w-5 h-5" />
+            重置所有紀錄
           </button>
         </div>
       </div>
@@ -450,7 +459,7 @@ export default function ExamReviewGame() {
                         </div>
 
                         <div className="bg-slate-800/50 p-5 rounded-lg border border-slate-700/50">
-                          <span className="text-sm text-cyan-400 block mb-2 font-bold flex items-center gap-2">
+                          <span className="text-sm text-cyan-400 mb-2 font-bold flex items-center gap-2">
                             <BookOpen className="w-4 h-4"/> 溫習重點
                           </span>
                           <p className="text-slate-300 text-base leading-relaxed">{renderFormattedText(step.explanation)}</p>
