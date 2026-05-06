@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { CheckCircle2, XCircle, ChevronRight, ChevronLeft, RefreshCw, BookOpen, ShieldAlert, MonitorPlay, FileText, Save, Cpu, Menu, X, AlertTriangle, BarChart2, Filter } from 'lucide-react';
 
-// v4 終極擴充版題庫：抽絲剝繭 22/23 - 25/26 Past Paper
+// V5.1 完美排版題庫
 const NEW_TASKS = [
   {
     level: 1, title: "Task A：邏輯代數化簡 (24/25 Sem 2 Q1)", isBoss: false,
@@ -23,71 +23,119 @@ const NEW_TASKS = [
   {
     level: 3, title: "Task C：進制轉換大雜燴 (22/23 - 24/25 必考)", isBoss: false,
     steps: [
-      { currentExpression: "3F3_16", focus: "全部", question: "來自 22/23 LA：將十六進制 (Hex) 3F3_16 轉換為八進制 (Octal)，第一步先轉二進制。3F3_16 嘅二進制係？", options: ["001111110011_2", "1111110011_2", "001110110011_2", "001111110111_2"], correct: "001111110011_2", explanation: "3 = 0011, F = 1111, 3 = 0011。組合埋就係 0011 1111 0011_2。" },
-      { currentExpression: "001111110011_2", focus: "全部", question: "將二進制 001111110011_2 轉為八進制 (每 3 bits 一組)，結果係？", options: ["1763_8", "373_8", "1753_8", "763_8"], correct: "1763_8", explanation: "每 3 bits 分組：001 (1), 111 (7), 110 (6), 011 (3)。所以係 1763_8。" },
-      { currentExpression: "(140.78)_10", focus: "全部", question: "來自 23/24 Sem 2：將十進制 0.78 轉換為 4-bit 二進制小數。第一步 0.78 * 2 = 1.56 (取 1)。繼續乘落去，答案係？", options: ["0.1100_2", "0.1011_2", "0.1101_2", "0.1001_2"], correct: "0.1100_2", explanation: "0.78*2 = 1.56 (1); 0.56*2 = 1.12 (1); 0.12*2 = 0.24 (0); 0.24*2 = 0.48 (0)。順序讀取：0.1100_2。" }
+      { currentExpression: "3F3_{16}", focus: "全部", question: "來自 22/23 LA：將十六進制 (Hex) 3F3 轉換為八進制 (Octal)，第一步先轉二進制。3F3 嘅二進制係？", options: ["001111110011_{2}", "1111110011_{2}", "001110110011_{2}", "001111110111_{2}"], correct: "001111110011_{2}", explanation: "3 = 0011, F = 1111, 3 = 0011。組合埋就係 0011 1111 0011_{2}。" },
+      { currentExpression: "001111110011_{2}", focus: "全部", question: "將二進制 001111110011_{2} 轉為八進制 (每 3 bits 一組)，結果係？", options: ["1763_{8}", "373_{8}", "1753_{8}", "763_{8}"], correct: "1763_{8}", explanation: "每 3 bits 分組：001 (1), 111 (7), 110 (6), 011 (3)。所以係 1763_{8}。" },
+      { currentExpression: "(0.78)_{10}", focus: "全部", question: "來自 23/24 Sem 2：將十進制小數 0.78 轉換為 4-bit 二進制小數。第一步 0.78 \\times 2 = 1.56 (取 1)。繼續乘落去，答案係？", options: ["0.1100_{2}", "0.1011_{2}", "0.1101_{2}", "0.1001_{2}"], correct: "0.1100_{2}", explanation: "0.78 \\times 2 = 1.56 (1); 0.56 \\times 2 = 1.12 (1); 0.12 \\times 2 = 0.24 (0); 0.24 \\times 2 = 0.48 (0)。順序讀取：0.1100_{2}。" }
     ]
   },
   {
-    level: 4, title: "Task D：2's Complement 二進制算術 (22/23 Sem 1 Q1)", isBoss: true,
+    level: 4, title: "Task D：2's Complement 二進制算術 (22/23 Sem 1)", isBoss: true,
     steps: [
-      { currentExpression: "A = 94_10, B = 45_10", focus: "全部", question: "題目要求計算 A - B (9-bit binary)。首先，45_10 嘅 9-bit 二進制係幾多？", options: ["000101101_2", "000110101_2", "000010110_2", "001011010_2"], correct: "000101101_2", explanation: "45 / 2 連續除取餘數得出 101101_2。補足 9-bit 就係 000101101_2。" },
-      { currentExpression: "-B (即 -45_10)", focus: "全部", question: "計算 000101101_2 嘅 2's complement (二補碼)，代表負數。結果係？", options: ["111010011_2", "111010010_2", "110101101_2", "111101101_2"], correct: "111010011_2", explanation: "第一步反轉 (1's comp): 111010010_2。第二步加 1 (2's comp): 111010011_2。" },
-      { currentExpression: "001011110_2 + 111010011_2", focus: "全部", question: "將 A (94_10 = 001011110_2) 加上 B 嘅二補碼。相加後放棄第 10 位溢出 (Overflow) 嘅 1，最終 9-bit 答案係？", options: ["000110001_2", "001110001_2", "000100001_2", "001100011_2"], correct: "000110001_2", explanation: "相加等於 (1)000110001_2。丟棄最左邊嘅 1，得出 000110001_2 (轉換為十進制剛好是 49_10，即 94-45)。" }
+      { currentExpression: "A = 94_{10}, B = 45_{10}", focus: "全部", question: "題目要求計算 A - B (9-bit binary)。首先，45_{10} 嘅 9-bit 二進制係幾多？", options: ["000101101_{2}", "000110101_{2}", "000010110_{2}", "001011010_{2}"], correct: "000101101_{2}", explanation: "45 / 2 連續除取餘數得出 101101_{2}。補足 9-bit 就係 000101101_{2}。" },
+      { currentExpression: "-45_{10}", focus: "全部", question: "計算 000101101_{2} 嘅 2's complement (二補碼)，代表負數。結果係？", options: ["111010011_{2}", "111010010_{2}", "110101101_{2}", "111101101_{2}"], correct: "111010011_{2}", explanation: "第一步反轉 (1's comp): 111010010_{2}。第二步加 1 (2's comp): 111010011_{2}。" },
+      { currentExpression: "001011110_{2} + 111010011_{2}", focus: "全部", question: "將 A (94_{10} = 001011110_{2}) 加上 B 嘅二補碼。相加後放棄最高位溢出 (Overflow) 嘅 1，最終答案係？", options: ["000110001_{2}", "001110001_{2}", "000100001_{2}", "001100011_{2}"], correct: "000110001_{2}", explanation: "相加等於 (1)000110001_{2}。丟棄最左邊嘅 1，得出 000110001_{2} (轉換為十進制剛好是 49_{10}，即 94-45)。" }
     ]
   },
   {
-    level: 5, title: "Task E：Canonical Form & POS/SOP (24/25 & 25/26)", isBoss: false,
+    level: 5, title: "Task E：Canonical Form & POS/SOP", isBoss: false,
     steps: [
-      { currentExpression: "F = \\sum m(0,1,3,5,10,12,14,15)", focus: "\\sum m", question: "來自 24/25 Sem 2：呢個表示法 (Sigma m) 代表咩意思？", options: ["Sum of Products (SOP) 的 Minterms", "Product of Sums (POS) 的 Maxterms", "Don't care conditions", "Logic Gates 的數量"], correct: "Sum of Products (SOP) 的 Minterms", explanation: "小寫 m 代表 Minterms，Sigma 代表將佢哋加埋一齊 (OR)，所以係 SOP 形式。" },
-      { currentExpression: "F = \\sum m(0,1,3,5)", focus: "全部", question: "如果一個 3-bit 系統嘅 SOP 係 F = \\sum m(0,1,3,5)，咁佢嘅 POS (Maxterms) 表示法會係咩？", options: ["\\prod M(2,4,6,7)", "\\prod M(0,1,3,5)", "\\sum m(2,4,6,7)", "\\prod M(1,3,5,7)"], correct: "\\prod M(2,4,6,7)", explanation: "Maxterms (大寫 M) 就係 Minterms 冇包含嘅剩餘數字。3-bit 總共有 0-7，缺咗 2,4,6,7，所以係 \\prod M(2,4,6,7)。" }
+      { currentExpression: "F = \\sum m(0,1,3,5,10,12)", focus: "\\sum m", question: "來自 24/25 Sem 2：呢個表示法 (Sigma m) 代表咩意思？", options: ["Sum of Products (SOP) 的 Minterms", "Product of Sums (POS) 的 Maxterms", "Don't care conditions", "Logic Gates 的數量"], correct: "Sum of Products (SOP) 的 Minterms", explanation: "小寫 m 代表 Minterms，Sigma (∑) 代表將佢哋加埋一齊 (OR)，所以係 SOP 形式。" },
+      { currentExpression: "F = \\sum m(0,1,3,5)", focus: "全部", question: "如果一個 3-bit 系統嘅 SOP 係 F = \\sum m(0,1,3,5)，咁佢嘅 POS (Maxterms) 表示法會係咩？", options: ["\\prod M(2,4,6,7)", "\\prod M(0,1,3,5)", "\\sum m(2,4,6,7)", "\\prod M(1,3,5,7)"], correct: "\\prod M(2,4,6,7)", explanation: "Maxterms (大寫 M, 符號 ∏) 就係 Minterms 冇包含嘅剩餘數字。3-bit 總共有 0-7，缺咗 2,4,6,7，所以係 \\prod M(2,4,6,7)。" }
     ]
   },
   {
-    level: 6, title: "Task F：計數器設計 Sequential Logic (25/26 Sem 1 Q3)", isBoss: true,
+    level: 6, title: "Task F：計數器與 Excitation Table (25/26 Sem 1)", isBoss: true,
     steps: [
-      { currentExpression: "0 \\rightarrow 1 \\rightarrow 5 \\rightarrow 7 \\rightarrow 8 \\rightarrow 10 \\rightarrow 12 \\rightarrow 15", focus: "15", question: "要設計呢個 Counter，最大數字係 15，需要幾多個 Flip-flops？", options: ["4", "3", "5", "8"], correct: "4", explanation: "15 嘅二進制係 1111_2，佔用 4 個 bits，所以必須使用 4 個 Flip-flops。" },
-      { currentExpression: "Unused States (例如 2, 3, 4, 6)", focus: "全部", question: "題目指明「consider all states which will not be appeared as don't care state」。即係畫 K-map 時，數字 2, 3 等格仔要填咩？", options: ["X (Don't care)", "0", "1", "留空"], correct: "X (Don't care)", explanation: "將未出現嘅狀態設為 X，可以喺 K-map 盡量圈大啲嘅群組，極大化簡 Flip-flop 嘅輸入邏輯。" },
-      { currentExpression: "Present State 15 (1111_2) \\rightarrow Next State 0 (0000_2)", focus: "全部", question: "當最高位 (MSB) 由 1 變成 0，對應嘅 J, K 輸入應該係咩？(Hint: JK Excitation Table)", options: ["J=X, K=1", "J=1, K=X", "J=0, K=1", "J=1, K=1"], correct: "J=X, K=1", explanation: "要令 Q 由 1 變 0 (Reset)，J 係乜都得 (X)，但 K 必須為 1。如果 K=1, J=0 會 Reset；如果 K=1, J=1 會 Toggle (1變0)。所以 J=X, K=1。" }
+      { currentExpression: "0 \\rightarrow 1 \\rightarrow 5 \\rightarrow 7 \\rightarrow 8 \\rightarrow 10 \\rightarrow 15", focus: "15", question: "要設計呢個 Counter，最大數字係 15，需要幾多個 Flip-flops？", options: ["4", "3", "5", "8"], correct: "4", explanation: "15 嘅二進制係 1111_{2}，佔用 4 個 bits，所以必須使用 4 個 Flip-flops。" },
+      { currentExpression: "Unused States", focus: "全部", question: "題目指明「consider all states which will not be appeared as don't care state」。即係畫 K-map 時，數字 2, 3 等格仔要填咩？", options: ["X (Don't care)", "0", "1", "留空"], correct: "X (Don't care)", explanation: "將未出現嘅狀態設為 X (Don't care)，可以喺 K-map 盡量圈大啲嘅群組，極大化簡方程式。" }
     ]
   },
   {
-    level: 7, title: "Task G：ADC 模數轉換器 (25/26 Sem 1 Q4a)", isBoss: false,
+    level: 7, title: "Task G：ADC 模數轉換器 (25/26 Sem 1)", isBoss: false,
     steps: [
-      { currentExpression: "5-bit Flash ADC, V_{ref} = 5V", focus: "全部", question: "計算 5-bit Flash ADC 嘅 Step size (Resolution voltage)。", options: ["0.156V", "0.2V", "0.312V", "0.1V"], correct: "0.156V", explanation: "Step size = V_ref / 2^n = 5 / 32 = 0.15625V。" },
-      { currentExpression: "V_{in} = 3V, Step Size = 0.15625V", focus: "全部", question: "計算 Digital Output 嘅十進制數值 (取整數)。", options: ["19", "20", "18", "15"], correct: "19", explanation: "Digital Output = V_in / Step_size = 3 / 0.15625 = 19.2。向下取整數得出 19 (即 10011_2)。" },
-      { currentExpression: "Comparators needed for 5-bit", focus: "全部", question: "Flash ADC 最出名就係速度快但零件多。5-bit 需要幾多個 Comparators？", options: ["31", "32", "16", "64"], correct: "31", explanation: "公式為 (2^n) - 1。2^5 - 1 = 32 - 1 = 31 個。" }
+      { currentExpression: "5-bit Flash ADC, V_{ref} = 5V", focus: "全部", question: "計算 5-bit Flash ADC 嘅 Step size (Resolution voltage)。", options: ["0.156V", "0.2V", "0.312V", "0.1V"], correct: "0.156V", explanation: "Step size = V_{ref} / 2^n = 5 / 32 = 0.15625V。" },
+      { currentExpression: "Comparators needed", focus: "全部", question: "Flash ADC 最出名就係速度快但零件多。5-bit 需要幾多個 Comparators？", options: ["31", "32", "16", "64"], correct: "31", explanation: "比較器數量公式為 (2^n) - 1。2^5 - 1 = 32 - 1 = 31 個。" }
     ]
   },
   {
-    level: 8, title: "Task H：DAC 數模轉換器 (23/24 & 25/26)", isBoss: true,
+    level: 8, title: "Task H：DAC 數模轉換器", isBoss: true,
     steps: [
-      { currentExpression: "Resolution = 0.39\\%", focus: "0.39\\%", question: "來自 23/24 Sem 1 逆向題：如果已知 DAC 嘅 % Resolution 係 0.39%，佢係幾多 bit 嘅 DAC？", options: ["8-bit", "6-bit", "7-bit", "10-bit"], correct: "8-bit", explanation: "% Resolution = 1 / (2^n - 1)。0.0039 = 1 / (2^n - 1) -> 2^n - 1 = 256.4 -> 2^n ≈ 256 -> n = 8。" },
-      { currentExpression: "6-bit R-2R DAC, V_{High} = 5V", focus: "全部", question: "來自 25/26 Sem 1：輸入 Digital = 011101_2 (十進制 29)。計算 Output Voltage。", options: ["2.265V", "2.5V", "1.85V", "3.12V"], correct: "2.265V", explanation: "V_out = V_High * (Digital_Value / 2^n) = 5 * (29 / 64) = 5 * 0.453 = 2.265V。" }
+      { currentExpression: "Resolution = 0.39\\%", focus: "0.39\\%", question: "來自 23/24 Sem 1 逆向題：如果已知 DAC 嘅 % Resolution 係 0.39%，佢係幾多 bit 嘅 DAC？", options: ["8-bit", "6-bit", "7-bit", "10-bit"], correct: "8-bit", explanation: "% Resolution = 1 / (2^n - 1)。0.0039 = 1 / (2^n - 1) \\rightarrow 2^n - 1 = 256.4 \\rightarrow 2^n \\approx 256 \\rightarrow n = 8。" },
+      { currentExpression: "6-bit R-2R DAC, V_{High} = 5V, Input = 011101_{2}", focus: "全部", question: "來自 25/26 Sem 1：輸入 Digital = 011101_{2} (十進制 29)。計算 Output Voltage。", options: ["2.265V", "2.5V", "1.85V", "3.12V"], correct: "2.265V", explanation: "V_{out} = V_{High} \\times (Digital / 2^n) = 5 \\times (29 / 64) = 5 \\times 0.453 = 2.265V。" }
     ]
   },
   {
-    level: 9, title: "Task I：功率放大器 Power Amplifiers (24/25 Sem 2 Q4c)", isBoss: true,
+    level: 9, title: "Task I：功率放大器 Power Amplifiers (24/25 Sem 2)", isBoss: true,
     steps: [
-      { currentExpression: "V_{CC}=20V, R_L=8\\Omega, V_{pp}=16V", focus: "V_{pp}=16V", question: "首先，計算輸出信號嘅 Peak voltage (V_p)。", options: ["8V", "16V", "32V", "4V"], correct: "8V", explanation: "Peak-to-peak voltage (V_pp) 係 16V，Peak voltage (V_p) 就係佢嘅一半 = 8V。" },
-      { currentExpression: "V_p=8V, R_L=8\\Omega", focus: "全部", question: "計算流過 Load 嘅 Peak current (I_p)。", options: ["1A", "2A", "0.5A", "8A"], correct: "1A", explanation: "根據 Ohm's Law，I_p = V_p / R_L = 8V / 8\\Omega = 1A。" },
-      { currentExpression: "I_p = 1A", focus: "全部", question: "對於 Class AB (接近 Class B)，由 Power supply (V_CC) 抽出嘅平均 DC 電流 (I_{dc}) 公式係 I_{dc} = 2 * I_p / \\pi。計算 I_{dc}。", options: ["0.636A", "0.5A", "1.414A", "1A"], correct: "0.636A", explanation: "I_{dc} = 2 * (1A) / 3.1416 ≈ 0.636A。" },
-      { currentExpression: "V_{CC}=20V, I_{dc}=0.636A", focus: "全部", question: "最後，計算總 DC Input Power (P_{in(dc)})。", options: ["12.72W", "20W", "10W", "16W"], correct: "12.72W", explanation: "P_{in(dc)} = V_{CC} * I_{dc} = 20V * 0.636A = 12.72W。之後只要計埋 P_out 就可以搵到 Efficiency 啦！" }
+      { currentExpression: "Class AB (Diode Biasing)", focus: "全部", question: "加入 Diode 嘅主要作用係咩？", options: ["消除交越失真 (Crossover Distortion)", "增加放大倍數", "保護電路", "增加效率"], correct: "消除交越失真 (Crossover Distortion)", explanation: "Diode 提供 0.7V 偏壓令電晶體提早微導通，完美解決 Crossover Distortion。" },
+      { currentExpression: "V_{CC}=20V, R_{L}=8\\Omega, V_{pp}=16V", focus: "V_{pp}=16V", question: "首先，計算輸出信號嘅 Peak voltage (V_p)。", options: ["8V", "16V", "32V", "4V"], correct: "8V", explanation: "Peak-to-peak voltage (V_{pp}) 係 16V，Peak voltage (V_p) 就係佢嘅一半 = 8V。" },
+      { currentExpression: "I_{p} = 1A", focus: "全部", question: "由 Power supply (V_{CC}) 抽出嘅平均 DC 電流 (I_{dc}) 公式係 I_{dc} = 2 \\times I_p / \\pi。計算 I_{dc}。", options: ["0.636A", "0.5A", "1.414A", "1A"], correct: "0.636A", explanation: "I_{dc} = 2 \\times (1A) / 3.1416 \\approx 0.636A。" },
+      { currentExpression: "P_{in(dc)} = V_{CC} \\times I_{dc}", focus: "全部", question: "最後，計算總 DC Input Power (P_{in(dc)})。", options: ["12.72W", "20W", "10W", "16W"], correct: "12.72W", explanation: "P_{in(dc)} = V_{CC} \\times I_{dc} = 20V \\times 0.636A = 12.72W。之後計埋 P_{out} 就可以搵到 Efficiency 啦！" }
+    ]
+  },
+  {
+    level: 10, title: "Task J：Transition Table 狀態轉移表實戰", isBoss: false,
+    steps: [
+      { currentExpression: "Present = 011_{2} \\rightarrow Next = 100_{2}", focus: "0 \\rightarrow 1", question: "對 Flip-Flop A 而言，由 0 變 1。根據 JK Excitation Table，J_A 同 K_A 應該係咩？", options: ["J=1, K=X", "J=X, K=1", "J=1, K=0", "J=0, K=1"], correct: "J=1, K=X", explanation: "要 Set (0變1)，J 必須為 1，K 可以係 0 (Set) 或 1 (Toggle)，所以 K 係 X (Don't care)。" },
+      { currentExpression: "Present = 011_{2} \\rightarrow Next = 100_{2}", focus: "1 \\rightarrow 0", question: "對 Flip-Flop B 而言，由 1 變 0。J_B 同 K_B 應該係咩？", options: ["J=X, K=1", "J=1, K=X", "J=0, K=X", "J=1, K=1"], correct: "J=X, K=1", explanation: "要 Reset (1變0)，K 必須為 1，J 可以係 0 (Reset) 或 1 (Toggle)，所以 J 係 X。" }
+    ]
+  },
+  {
+    level: 11, title: "Task K：K-map 四角群組法", isBoss: false,
+    steps: [
+      { currentExpression: "K-map 群組：m(0,2,8,10)", focus: "全部", question: "畫 4-variable K-map 時，呢四個數字啱啱好喺四個角落 (Corners)。觀察二進制：0000, 0010, 1000, 1010。佢哋化簡後會得出咩？", options: ["B'D'", "A'C'", "BD'", "A'D'"], correct: "B'D'", explanation: "四個數字嘅 B 位全部都係 0，D 位全部都係 0。所以提取出嚟就係 B'D'！呢招「四角圈法」極常用！" }
+    ]
+  },
+  {
+    level: 12, title: "Task L：Multiplexer MUX 電路實作", isBoss: true,
+    steps: [
+      { currentExpression: "4-to-1 MUX 實現 F(A,B,C) = \\sum m(1,3,5,6)", focus: "全部", question: "用 A, B 作為 Selectors。當 AB=00 時 (對應 m0, m1)，m0=0, m1=1。MUX 嘅 D_0 輸入應該接駁去邊度？", options: ["接駁去 C", "接駁去 C'", "接駁去 0 (Ground)", "接駁去 1 (Vcc)"], correct: "接駁去 C", explanation: "當 AB=00，C=0 時輸出 0(m0)，C=1 時輸出 1(m1)。F 完美跟隨 C 嘅變化，所以 D_0 接去 C。" },
+      { currentExpression: "F(A,B,C) = \\sum m(1,3,5,6)", focus: "全部", question: "當 AB=11 時 (對應 m6, m7)。m6=1, m7=0。MUX 嘅 D_3 輸入應該接駁去邊度？", options: ["接駁去 C'", "接駁去 C", "接駁去 0", "接駁去 1"], correct: "接駁去 C'", explanation: "當 AB=11，C=0 時輸出 1(m6)，C=1 時輸出 0(m7)。輸出同 C 相反，所以 D_3 接去 C' (NOT C)。" }
+    ]
+  },
+  {
+    level: 13, title: "Task M：Dual-slope ADC 時間計算", isBoss: false,
+    steps: [
+      { currentExpression: "V_{in} = 1.5V, V_{ref} = 0.4V, t_{1} = 5ms", focus: "全部", question: "來自 22/23 Sem 1 Q4b：Dual-slope ADC 放電時間 t_2 嘅公式係 t_2 = t_1 \\times (V_{in} / V_{ref})。計算 t_2。", options: ["18.75ms", "1.33ms", "15ms", "20ms"], correct: "18.75ms", explanation: "代入公式：t_2 = 5ms \\times (1.5 / 0.4) = 5ms \\times 3.75 = 18.75ms。呢個時間會由 Counter 轉化做 Digital output。" }
     ]
   }
 ];
 
-// 強大嘅數學符號排版引擎 (將 _x 變下標，^x 變上標)
+// 重寫超強大數學排版解析器 (支援 _{...}, ^^{...}, _x, ^x, \times, \rightarrow, \sum, \prod)
 const renderFormattedText = (text) => {
   if (typeof text !== 'string') return text;
-  const parts = text.split(/(_\w+|\^\w+|\\times|\\rightarrow|\\sum|\\prod)/g);
+  
+  // 正規表達式精準匹配 LaTeX 風格寫法
+  const regex = /(_\{[^}]+\}|_[\w\d]+|\^\{[^}]+\}|\^[\w\d]+|\\times|\\rightarrow|\\sum|\\prod)/g;
+  const parts = text.split(regex);
+  
   return parts.map((part, i) => {
-    if (part.startsWith('_')) return <sub key={i} className="text-[0.7em] opacity-80 ml-[1px]">{part.slice(1)}</sub>;
-    if (part.startsWith('^')) return <sup key={i} className="text-[0.7em] opacity-80 ml-[1px]">{part.slice(1)}</sup>;
-    if (part === '\\times') return <span key={i} className="mx-2">×</span>;
-    if (part === '\\rightarrow') return <span key={i} className="mx-2">→</span>;
-    if (part === '\\sum') return <span key={i} className="mx-1 text-xl">∑</span>;
-    if (part === '\\prod') return <span key={i} className="mx-1 text-xl">∏</span>;
+    if (!part) return null;
+    
+    // 處理下標 (Subscript)
+    if (part.startsWith('_')) {
+      let content = part.slice(1);
+      if (content.startsWith('{') && content.endsWith('}')) {
+        content = content.slice(1, -1);
+      }
+      return <sub key={i} className="text-[0.65em] align-baseline relative -bottom-[0.3em] mx-[1px] text-cyan-200/90">{content}</sub>;
+    }
+    
+    // 處理上標 (Superscript)
+    if (part.startsWith('^')) {
+      let content = part.slice(1);
+      if (content.startsWith('{') && content.endsWith('}')) {
+        content = content.slice(1, -1);
+      }
+      return <sup key={i} className="text-[0.65em] align-baseline relative -top-[0.4em] mx-[1px] text-cyan-200/90">{content}</sup>;
+    }
+    
+    // 處理特殊符號
+    if (part === '\\times') return <span key={i} className="mx-1.5 font-sans">×</span>;
+    if (part === '\\rightarrow') return <span key={i} className="mx-1.5 font-sans">→</span>;
+    if (part === '\\sum') return <span key={i} className="mx-1.5 text-2xl align-middle">∑</span>;
+    if (part === '\\prod') return <span key={i} className="mx-1.5 text-2xl align-middle">∏</span>;
+    
     return <span key={i}>{part}</span>;
   });
 };
@@ -101,9 +149,9 @@ export default function ExamReviewGame() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [showOnlyMistakes, setShowOnlyMistakes] = useState(false);
 
-  // 讀取 LocalStorage 存檔 (v4)
+  // 讀取 LocalStorage 存檔 (v5.1)
   useEffect(() => {
-    const savedData = localStorage.getItem('sehs3313-exam-save-v4');
+    const savedData = localStorage.getItem('sehs3313-exam-save-v5');
     if (savedData) {
       try {
         const parsed = JSON.parse(savedData);
@@ -123,7 +171,7 @@ export default function ExamReviewGame() {
   useEffect(() => {
     if (Object.keys(answers).length > 0 || currentLevelIdx > 0) {
       const dataToSave = { answers, currentLevelIdx, currentStepIdx, view };
-      localStorage.setItem('sehs3313-exam-save-v4', JSON.stringify(dataToSave));
+      localStorage.setItem('sehs3313-exam-save-v5', JSON.stringify(dataToSave));
       setSaveStatus('💾 自動存檔中...');
       const timer = setTimeout(() => setSaveStatus(''), 1500);
       return () => clearTimeout(timer);
@@ -137,6 +185,19 @@ export default function ExamReviewGame() {
   const selectedOption = answers[stepKey];
   const isCorrect = selectedOption === currentStep?.correct;
   const totalQuestions = NEW_TASKS.reduce((acc, level) => acc + level.steps.length, 0);
+
+  // 隨機打亂選項 (每次進入新題目時重新洗牌)
+  const shuffledOptions = useMemo(() => {
+    if (!currentStep) return [];
+    // 複製一份原選項陣列，避免修改到原資料
+    const opts = [...currentStep.options];
+    // Fisher-Yates 洗牌演算法
+    for (let i = opts.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [opts[i], opts[j]] = [opts[j], opts[i]];
+    }
+    return opts;
+  }, [currentLevelIdx, currentStepIdx]); // 只有當 Level 或 Step 改變時先會重新洗牌
 
   const calculateScore = () => {
     let score = 0;
@@ -181,7 +242,7 @@ export default function ExamReviewGame() {
       setCurrentLevelIdx(0);
       setCurrentStepIdx(0);
       setView('game');
-      localStorage.removeItem('sehs3313-exam-save-v4');
+      localStorage.removeItem('sehs3313-exam-save-v5');
     }
   };
 
@@ -203,9 +264,9 @@ export default function ExamReviewGame() {
     if (parts.length === 1) return <span className="text-cyan-400 font-bold">{renderFormattedText(expr)}</span>;
 
     return (
-      <span className="leading-relaxed text-cyan-200">
+      <span className="leading-relaxed text-cyan-400 font-bold">
         {renderFormattedText(parts[0])}
-        <span className="inline-block mx-1 px-3 py-1 bg-cyan-900/60 border border-cyan-400/60 rounded-lg text-cyan-300 shadow-[0_0_15px_rgba(34,211,238,0.3)] scale-110 transform transition-all">
+        <span className="inline-block mx-1.5 px-3 py-1 bg-cyan-900/60 border border-cyan-400/60 rounded-lg text-cyan-300 shadow-[0_0_15px_rgba(34,211,238,0.4)] scale-110 transform transition-all align-middle">
           {renderFormattedText(focus)}
         </span>
         {renderFormattedText(parts.slice(1).join(focus))}
@@ -255,7 +316,7 @@ export default function ExamReviewGame() {
               >
                 <div className="flex justify-between items-center mb-1">
                   <span className={`font-bold text-sm ${isCurrent ? 'text-cyan-400' : isCompleted ? 'text-emerald-400' : ''}`}>
-                    Task {idx + 1}
+                    Task {String.fromCharCode(65 + idx)}
                   </span>
                   {isCompleted && <CheckCircle2 className="w-4 h-4 text-emerald-500" />}
                 </div>
@@ -369,28 +430,30 @@ export default function ExamReviewGame() {
                     return (
                       <div key={sIdx} className="bg-slate-900/80 rounded-xl p-5 border border-slate-800">
                         <div className="mb-3">
-                          <p className="text-xs text-slate-500 font-mono mb-1">DATA / CONTEXT</p>
-                          <p className="text-lg font-mono text-cyan-400 break-words">{renderFormattedText(step.currentExpression)}</p>
+                          <p className="text-xs text-slate-500 font-mono mb-2 tracking-widest uppercase">Data / Context</p>
+                          <p className="text-xl font-mono text-cyan-400 break-words bg-slate-950/50 p-4 rounded-lg border border-slate-800">{renderFormattedText(step.currentExpression)}</p>
                         </div>
-                        <p className="text-slate-200 mb-4 font-medium">{renderFormattedText(step.question)}</p>
+                        <p className="text-slate-200 mb-4 font-medium text-lg">{renderFormattedText(step.question)}</p>
                         
                         <div className="flex flex-col md:flex-row gap-4 mb-4">
-                          <div className="flex-1 bg-slate-800 p-3 rounded-lg border border-slate-700">
-                            <span className="text-xs text-slate-500 block mb-1">你的答案</span>
-                            <div className={`flex items-center gap-2 font-mono ${isUnanswered ? 'text-slate-500' : sCorrect ? 'text-emerald-400' : 'text-red-400'}`}>
-                              {!isUnanswered && (sCorrect ? <CheckCircle2 className="w-4 h-4"/> : <XCircle className="w-4 h-4"/>)}
+                          <div className="flex-1 bg-slate-800 p-4 rounded-lg border border-slate-700">
+                            <span className="text-xs text-slate-500 block mb-2">你的答案</span>
+                            <div className={`flex items-center gap-2 font-mono text-lg ${isUnanswered ? 'text-slate-500' : sCorrect ? 'text-emerald-400' : 'text-red-400'}`}>
+                              {!isUnanswered && (sCorrect ? <CheckCircle2 className="w-5 h-5"/> : <XCircle className="w-5 h-5"/>)}
                               {isUnanswered ? "- 未作答 -" : renderFormattedText(uAns)}
                             </div>
                           </div>
-                          <div className="flex-1 bg-emerald-950/30 p-3 rounded-lg border border-emerald-900/50">
-                            <span className="text-xs text-emerald-500/70 block mb-1">正確答案</span>
-                            <span className="font-mono text-emerald-400 font-bold">{renderFormattedText(step.correct)}</span>
+                          <div className="flex-1 bg-emerald-950/30 p-4 rounded-lg border border-emerald-900/50">
+                            <span className="text-xs text-emerald-500/70 block mb-2">正確答案</span>
+                            <span className="font-mono text-emerald-400 font-bold text-lg">{renderFormattedText(step.correct)}</span>
                           </div>
                         </div>
 
-                        <div className="bg-slate-800/50 p-4 rounded-lg border border-slate-700/50">
-                          <span className="text-xs text-cyan-400 block mb-1 font-bold">溫習重點</span>
-                          <p className="text-slate-300 text-sm leading-relaxed">{renderFormattedText(step.explanation)}</p>
+                        <div className="bg-slate-800/50 p-5 rounded-lg border border-slate-700/50">
+                          <span className="text-sm text-cyan-400 block mb-2 font-bold flex items-center gap-2">
+                            <BookOpen className="w-4 h-4"/> 溫習重點
+                          </span>
+                          <p className="text-slate-300 text-base leading-relaxed">{renderFormattedText(step.explanation)}</p>
                         </div>
                       </div>
                     );
@@ -468,8 +531,8 @@ export default function ExamReviewGame() {
           </div>
 
           <div className="p-6 md:p-8 bg-[#0f172a] border-b border-slate-800 relative">
-            <p className="text-[10px] sm:text-xs text-slate-500 font-mono mb-3 tracking-widest">DATA / CONTEXT</p>
-            <div className="font-mono text-3xl md:text-4xl tracking-wider text-slate-300 leading-relaxed overflow-x-auto pb-2">
+            <p className="text-[10px] sm:text-xs text-slate-500 font-mono mb-4 tracking-widest uppercase">Data / Context</p>
+            <div className="font-mono text-2xl md:text-3xl tracking-wider text-slate-300 leading-relaxed overflow-x-auto pb-2">
               {renderExpression(currentStep.currentExpression, currentStep.focus)}
             </div>
           </div>
@@ -482,7 +545,7 @@ export default function ExamReviewGame() {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-          {currentStep.options.map((option, idx) => {
+          {shuffledOptions.map((option, idx) => {
             const isSelected = selectedOption === option;
             const isCorrectOption = option === currentStep.correct;
             let btnClass = "bg-slate-800 border-slate-700 hover:bg-slate-700 text-slate-200 hover:border-cyan-500";
@@ -498,12 +561,12 @@ export default function ExamReviewGame() {
                 key={idx}
                 onClick={() => handleOptionClick(option)}
                 disabled={hasAnswered}
-                className={`group relative p-5 rounded-2xl border-2 text-left font-mono text-lg transition-all ${btnClass}`}
+                className={`group relative p-5 rounded-2xl border-2 text-left font-mono text-xl transition-all ${btnClass}`}
               >
                 <div className="flex items-center justify-between">
                   <span>{renderFormattedText(option)}</span>
-                  {hasAnswered && isCorrectOption && <CheckCircle2 className="w-6 h-6 text-emerald-400" />}
-                  {hasAnswered && isSelected && !isCorrectOption && <XCircle className="w-6 h-6 text-red-400" />}
+                  {hasAnswered && isCorrectOption && <CheckCircle2 className="w-6 h-6 text-emerald-400 flex-shrink-0 ml-2" />}
+                  {hasAnswered && isSelected && !isCorrectOption && <XCircle className="w-6 h-6 text-red-400 flex-shrink-0 ml-2" />}
                 </div>
               </button>
             );
@@ -512,21 +575,21 @@ export default function ExamReviewGame() {
 
         {hasAnswered && (
           <div className="animate-in slide-in-from-bottom-8 fade-in duration-500 mb-6">
-            <div className={`p-6 rounded-2xl border backdrop-blur-sm ${isCorrect ? 'bg-emerald-950/40 border-emerald-900/50' : 'bg-red-950/40 border-red-900/50'}`}>
-              <h3 className={`font-bold mb-3 flex items-center gap-2 text-lg ${isCorrect ? 'text-emerald-400' : 'text-red-400'}`}>
-                {isCorrect ? '✨ 完美作答！' : <><XCircle className="w-5 h-5"/> 正確答案係：{renderFormattedText(currentStep.correct)}</>}
+            <div className={`p-6 md:p-8 rounded-2xl border backdrop-blur-sm ${isCorrect ? 'bg-emerald-950/40 border-emerald-900/50' : 'bg-red-950/40 border-red-900/50'}`}>
+              <h3 className={`font-bold mb-4 flex items-center gap-2 text-xl ${isCorrect ? 'text-emerald-400' : 'text-red-400'}`}>
+                {isCorrect ? '✨ 完美作答！' : <><XCircle className="w-6 h-6"/> 正確答案係：{renderFormattedText(currentStep.correct)}</>}
               </h3>
-              <div className="mt-4 pt-4 border-t border-slate-700/50">
-                <h4 className="text-sm font-bold text-slate-400 flex items-center gap-2 mb-2 uppercase tracking-widest">
-                  <BookOpen className="w-4 h-4" /> 溫習重點
+              <div className="mt-5 pt-5 border-t border-slate-700/50">
+                <h4 className="text-sm font-bold text-slate-400 flex items-center gap-2 mb-3 uppercase tracking-widest">
+                  <BookOpen className="w-5 h-5" /> 溫習重點
                 </h4>
-                <p className="text-slate-300 text-lg leading-relaxed">{renderFormattedText(currentStep.explanation)}</p>
+                <p className="text-slate-300 text-lg md:text-xl leading-relaxed">{renderFormattedText(currentStep.explanation)}</p>
               </div>
             </div>
           </div>
         )}
 
-        <div className="flex gap-4">
+        <div className="flex gap-4 pb-8">
           <button onClick={handlePrev} disabled={currentLevelIdx === 0 && currentStepIdx === 0} className="flex-1 flex justify-center items-center gap-2 bg-slate-800 text-slate-300 py-5 rounded-2xl hover:bg-slate-700 disabled:opacity-30 border border-slate-700 transition-all font-bold">
             <ChevronLeft className="w-6 h-6" /> 上一步
           </button>
