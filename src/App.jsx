@@ -135,7 +135,7 @@ const GAME_LEVELS = [
   }
 ];
 
-// 強大草稿紙組件 (支援文字與繪畫，獨立存檔)
+// 強大草稿紙組件
 const Scratchpad = ({ onClose, currentStep, initialData, onSave }) => {
   const canvasRef = useRef(null);
   const containerRef = useRef(null);
@@ -150,16 +150,13 @@ const Scratchpad = ({ onClose, currentStep, initialData, onSave }) => {
     const canvas = canvasRef.current;
     if (!canvas || !containerRef.current) return;
     
-    // 將 canvas 大小設定為容器的實際像素大小，避免拉伸
     canvas.width = containerRef.current.offsetWidth;
     canvas.height = containerRef.current.offsetHeight;
     const ctx = canvas.getContext('2d');
     
-    // 填滿深色背景
     ctx.fillStyle = '#0f172a'; // slate-950
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-    // 載入之前畫落嘅資料 (如果有)
     if (initialData) {
       const img = new Image();
       img.onload = () => {
@@ -168,9 +165,18 @@ const Scratchpad = ({ onClose, currentStep, initialData, onSave }) => {
       img.src = initialData;
     }
     
-    document.body.style.overflow = 'hidden'; // 防止手機滑動畫板時捲動頁面
+    document.body.style.overflow = 'hidden'; 
     return () => { document.body.style.overflow = 'auto'; };
   }, [initialData]);
+
+  useEffect(() => {
+    if (textInput.visible && inputRef.current) {
+      const timer = setTimeout(() => {
+        inputRef.current?.focus();
+      }, 50);
+      return () => clearTimeout(timer);
+    }
+  }, [textInput.visible]);
 
   const saveCanvas = () => {
     if (canvasRef.current) {
@@ -181,12 +187,21 @@ const Scratchpad = ({ onClose, currentStep, initialData, onSave }) => {
   const getCoordinates = (e) => {
     const canvas = canvasRef.current;
     const rect = canvas.getBoundingClientRect();
+    
     if (e.touches && e.touches.length > 0) {
       return {
         offsetX: e.touches[0].clientX - rect.left,
         offsetY: e.touches[0].clientY - rect.top
       };
     }
+    
+    if (e.nativeEvent && 'offsetX' in e.nativeEvent) {
+      return {
+        offsetX: e.nativeEvent.offsetX,
+        offsetY: e.nativeEvent.offsetY
+      };
+    }
+    
     return {
       offsetX: e.clientX - rect.left,
       offsetY: e.clientY - rect.top
@@ -194,7 +209,6 @@ const Scratchpad = ({ onClose, currentStep, initialData, onSave }) => {
   };
 
   const startInteraction = (e) => {
-    // 如果有打緊字，先幫佢印落畫板
     if (textInput.visible) {
       stampText();
       return; 
@@ -209,7 +223,6 @@ const Scratchpad = ({ onClose, currentStep, initialData, onSave }) => {
     } else if (tool === 'text') {
       const { offsetX, offsetY } = getCoordinates(e);
       setTextInput({ visible: true, x: offsetX, y: offsetY, text: '' });
-      setTimeout(() => inputRef.current?.focus(), 50);
     }
   };
 
@@ -230,7 +243,7 @@ const Scratchpad = ({ onClose, currentStep, initialData, onSave }) => {
     const ctx = canvasRef.current.getContext('2d');
     ctx.closePath();
     setIsDrawing(false);
-    saveCanvas(); // 畫完一筆就 Save
+    saveCanvas();
   };
 
   const stampText = () => {
@@ -238,8 +251,8 @@ const Scratchpad = ({ onClose, currentStep, initialData, onSave }) => {
       const ctx = canvasRef.current.getContext('2d');
       ctx.font = 'bold 20px monospace';
       ctx.fillStyle = '#22d3ee';
-      ctx.fillText(textInput.text, textInput.x, textInput.y + 16); 
-      saveCanvas(); // 打完字 Save
+      ctx.fillText(textInput.text, textInput.x, textInput.y + 18); 
+      saveCanvas();
     }
     setTextInput({ visible: false, x: 0, y: 0, text: '' });
   };
@@ -257,7 +270,6 @@ const Scratchpad = ({ onClose, currentStep, initialData, onSave }) => {
   return (
     <div className="fixed inset-0 bg-slate-950/95 backdrop-blur-md z-[100] flex flex-col items-center justify-center p-4 animate-in fade-in duration-200">
       
-      {/* 頂部工具列與題目顯示 */}
       <div className="w-full max-w-4xl flex flex-col mb-2 bg-slate-900 rounded-2xl border border-slate-700 overflow-hidden shadow-2xl">
         <div className="flex justify-between items-center p-4 border-b border-slate-700/50 bg-slate-800/50">
           <h2 className="text-lg font-bold text-cyan-400 flex items-center gap-2">
@@ -273,8 +285,8 @@ const Scratchpad = ({ onClose, currentStep, initialData, onSave }) => {
           <p className="text-slate-300">{renderFormattedText(currentStep.question)}</p>
         </div>
         
-        <div className="p-3 bg-slate-900 border-t border-slate-800 flex justify-between items-center">
-          <div className="flex gap-2">
+        <div className="p-3 bg-slate-900 border-t border-slate-800 flex justify-between items-center flex-wrap gap-2">
+          <div className="flex items-center gap-2">
             <button 
               onClick={() => { setTool('pen'); stampText(); }}
               className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all ${tool === 'pen' ? 'bg-cyan-900/50 text-cyan-400 border border-cyan-500/50' : 'bg-slate-800 text-slate-400 border border-slate-700 hover:bg-slate-700'}`}
@@ -287,6 +299,11 @@ const Scratchpad = ({ onClose, currentStep, initialData, onSave }) => {
             >
               <Type className="w-4 h-4"/> 文字
             </button>
+            {tool === 'text' && !textInput.visible && (
+              <span className="text-yellow-400 text-xs font-bold animate-pulse ml-2 hidden sm:inline-block">
+                👉 請點擊畫板任意位置
+              </span>
+            )}
           </div>
           <button onClick={clearCanvas} className="p-2 bg-red-900/20 text-red-400 rounded-lg hover:bg-red-900/40 border border-red-900/30 transition-colors flex items-center gap-2 text-sm font-bold">
             <Trash2 className="w-4 h-4"/> 清除
@@ -294,10 +311,9 @@ const Scratchpad = ({ onClose, currentStep, initialData, onSave }) => {
         </div>
       </div>
 
-      {/* 畫板區域 */}
       <div 
         ref={containerRef} 
-        className="relative w-full max-w-4xl h-[50vh] bg-slate-900 border-2 border-slate-700 rounded-2xl overflow-hidden shadow-[0_0_30px_rgba(34,211,238,0.1)] touch-none cursor-crosshair"
+        className={`relative w-full max-w-4xl h-[50vh] bg-slate-900 border-2 border-slate-700 rounded-2xl overflow-hidden shadow-[0_0_30px_rgba(34,211,238,0.1)] touch-none ${tool === 'text' ? 'cursor-text' : 'cursor-crosshair'}`}
       >
         <canvas
           ref={canvasRef}
@@ -311,23 +327,28 @@ const Scratchpad = ({ onClose, currentStep, initialData, onSave }) => {
           className="absolute inset-0 w-full h-full"
         />
         
-        {/* 文字輸入框 Overlay */}
         {textInput.visible && (
           <input
             ref={inputRef}
             type="text"
             value={textInput.text}
-            onChange={(e) => setTextInput({...textInput, text: e.target.value})}
+            onChange={(e) => setTextInput(prev => ({...prev, text: e.target.value}))}
             onBlur={stampText}
-            onKeyDown={(e) => { if (e.key === 'Enter') stampText(); }}
-            style={{ left: textInput.x, top: textInput.y }}
-            className="absolute bg-transparent text-[#22d3ee] font-mono text-[20px] font-bold outline-none border-b border-cyan-500/50 p-0 m-0 z-10 min-w-[20px]"
-            autoFocus
-            placeholder="打字..."
+            onKeyDown={(e) => { 
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                stampText(); 
+              }
+            }}
+            onMouseDown={(e) => e.stopPropagation()} 
+            onTouchStart={(e) => e.stopPropagation()}
+            style={{ left: textInput.x, top: textInput.y - 10 }}
+            className="absolute bg-slate-900/90 text-[#22d3ee] font-mono text-[20px] font-bold outline-none border border-cyan-500/50 rounded px-2 py-1 m-0 z-10 min-w-[200px] shadow-2xl"
+            placeholder="輸入... (Enter確認)"
           />
         )}
       </div>
-      <p className="text-slate-500 mt-4 text-xs font-mono">畫完或打完字會自動存檔。每題草稿獨立保存。</p>
+      <p className="text-slate-500 mt-4 text-xs font-mono text-center">畫完或打完字會自動存檔。每題草稿獨立保存。</p>
     </div>
   );
 };
@@ -336,7 +357,7 @@ export default function ExamReviewGame() {
   const [currentLevelIdx, setCurrentLevelIdx] = useState(0);
   const [currentStepIdx, setCurrentStepIdx] = useState(0);
   const [answers, setAnswers] = useState({});
-  const [scratchpads, setScratchpads] = useState({}); // 新增：保存所有草稿
+  const [scratchpads, setScratchpads] = useState({}); 
   
   const [view, setView] = useState('start');
   const [saveStatus, setSaveStatus] = useState('');
@@ -347,7 +368,6 @@ export default function ExamReviewGame() {
   const [showHint, setShowHint] = useState(false);
   const [showScratchpad, setShowScratchpad] = useState(false);
 
-  // 讀取 LocalStorage 存檔 (更新至 v9)
   useEffect(() => {
     const savedData = localStorage.getItem('sehs3313-exam-save-v9');
     if (savedData) {
@@ -366,7 +386,6 @@ export default function ExamReviewGame() {
     }
   }, []);
 
-  // 自動存檔
   useEffect(() => {
     if (Object.keys(answers).length > 0 || currentLevelIdx > 0 || Object.keys(scratchpads).length > 0) {
       const dataToSave = { answers, currentLevelIdx, currentStepIdx, scratchpads };
@@ -440,7 +459,7 @@ export default function ExamReviewGame() {
   const handleRestart = () => {
     if(window.confirm("確定要重置所有紀錄？你嘅答題同所有草稿都會被清空。")) {
       setAnswers({});
-      setScratchpads({}); // 清空草稿
+      setScratchpads({}); 
       setCurrentLevelIdx(0);
       setCurrentStepIdx(0);
       setShowHint(false);
@@ -612,150 +631,332 @@ export default function ExamReviewGame() {
           </button>
         </div>
 
-        <div className="max-w-4xl mx-auto p-6 md:p-12 space-y-12 pb-24 text-lg">
+        <div className="max-w-4xl mx-auto p-4 sm:p-6 md:p-12 space-y-12 pb-24 text-base md:text-lg">
           <div className="text-center pb-8 border-b border-slate-800">
-            <h1 className="text-3xl md:text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-orange-500 mb-4">SEHS3313 Analogue and Digital Circuits</h1>
-            <p className="text-slate-400 font-mono">根據歷屆試題精煉 ． 全圖解 ． Step-by-Step</p>
+            <h1 className="text-3xl md:text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-orange-500 mb-4 leading-normal">SEHS3313 萬字詳盡溫習筆記</h1>
+            <p className="text-slate-400 font-mono text-sm">根據 22/23 - 25/26 歷屆試題及 Assignments 終極精煉</p>
           </div>
 
           {/* Section 1 */}
           <section className="space-y-6">
-            <h2 className="text-2xl font-bold text-cyan-400 flex items-center gap-2 pb-2 border-b border-cyan-900/30">
-              <span className="bg-cyan-900/50 p-2 rounded-lg">1</span> 基礎邏輯與代數化簡
+            <h2 className="text-2xl font-bold text-cyan-400 flex items-center gap-3 pb-3 border-b border-cyan-900/30">
+              <span className="bg-cyan-900/50 p-2 rounded-xl">1</span> 數字系統與基礎運算
             </h2>
-            <div className="bg-slate-800/40 p-6 rounded-2xl border border-slate-700/50 space-y-4">
-              <h3 className="text-xl font-bold text-white">代數化簡三大神技</h3>
-              <ul className="list-disc list-inside space-y-2 pl-4 text-slate-300">
-                <li><strong>吸收律：</strong> {renderFormattedText("A + AB = A")} (大食細)</li>
-                <li><strong>冗餘律 (極常用)：</strong> {renderFormattedText("X + X'Y = X + Y")}</li>
-                <li><strong>重複使用法：</strong> {renderFormattedText("X = X + X")} (複製分俾其他項合併)</li>
+            
+            <div className="bg-slate-800/40 p-5 md:p-8 rounded-3xl border border-slate-700/50 space-y-6 shadow-xl">
+              <h3 className="text-xl font-bold text-white flex items-center gap-2"><CheckCircle2 className="text-cyan-400 w-5 h-5"/> 進制轉換 (連除法圖解)</h3>
+              <p className="text-slate-300">將十進制轉為二進制，重點係由下至上讀取餘數。</p>
+              
+              <div className="bg-slate-950 p-5 rounded-2xl font-mono text-sm md:text-base text-emerald-400 border border-emerald-900/30 overflow-x-auto shadow-inner">
+                <span className="text-slate-500 block mb-2">// 將 140 轉為二進制：</span>
+                2 |  140 <br/>
+                &nbsp;&nbsp;|-------<br/>
+                2 |   70  ... 0  (最尾位 LSB)<br/>
+                &nbsp;&nbsp;|-------<br/>
+                2 |   35  ... 0<br/>
+                &nbsp;&nbsp;|-------<br/>
+                2 |   17  ... 1<br/>
+                &nbsp;&nbsp;|-------<br/>
+                2 |    8  ... 1<br/>
+                &nbsp;&nbsp;|-------<br/>
+                2 |    4  ... 0<br/>
+                &nbsp;&nbsp;|-------<br/>
+                2 |    2  ... 0<br/>
+                &nbsp;&nbsp;|-------<br/>
+                2 |    1  ... 0<br/>
+                &nbsp;&nbsp;|-------<br/>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;0  ... 1  (最頭位 MSB)<br/><br/>
+                <span className="text-yellow-400 font-bold">答案：由底讀上 → 10001100<sub>2</sub></span>
+              </div>
+            </div>
+
+            <div className="bg-slate-800/40 p-5 md:p-8 rounded-3xl border border-slate-700/50 space-y-6 shadow-xl">
+              <h3 className="text-xl font-bold text-white flex items-center gap-2"><CheckCircle2 className="text-cyan-400 w-5 h-5"/> 2's Complement 二進制減法</h3>
+              <p className="text-slate-300">電腦冇減法器，計算 <span className="font-mono text-cyan-300">A - B</span> 必須轉化為 <span className="font-mono text-cyan-300">A + (-B)</span>。</p>
+              
+              <div className="bg-slate-950 p-5 rounded-2xl font-mono text-sm md:text-base text-emerald-400 border border-emerald-900/30 overflow-x-auto shadow-inner">
+                <span className="text-slate-500 block mb-2">// 計算 94 - 45 (要求用 9-bit 系統)</span>
+                [Step 1] 準備 A 同 B：<br/>
+                A = 94 = 001011110<sub>2</sub><br/>
+                B = 45 = 000101101<sub>2</sub><br/><br/>
+                
+                [Step 2] 將 B 轉為 2's Complement (-B)：<br/>
+                &nbsp;&nbsp;000101101  (原本嘅 B)<br/>
+                ↓ 111010010  (1/0 全部反轉)<br/>
+                + &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;1  (最尾加 1)<br/>
+                -------------<br/>
+                &nbsp;&nbsp;<span className="text-yellow-400">111010011</span>  (呢個就係 -B)<br/><br/>
+
+                [Step 3] 直式相加 (A + (-B))：<br/>
+                &nbsp;&nbsp;&nbsp;001011110  (A)<br/>
+                + &nbsp;111010011  (-B)<br/>
+                -------------<br/>
+                &nbsp;<span className="text-red-400">1</span> 000110001 <br/><br/>
+                <span className="text-red-400">🚨 第 10 個 bit 溢出 (Overflow)，直接當垃圾掉咗佢！</span><br/>
+                <span className="text-yellow-400 font-bold">答案：000110001<sub>2</sub></span>
+              </div>
+            </div>
+
+            <div className="bg-slate-800/40 p-5 md:p-8 rounded-3xl border border-slate-700/50 space-y-6 shadow-xl">
+              <h3 className="text-xl font-bold text-white flex items-center gap-2"><CheckCircle2 className="text-cyan-400 w-5 h-5"/> 代數化簡三大神技</h3>
+              <ul className="list-none space-y-4 pl-0">
+                <li className="bg-slate-900/50 p-4 rounded-xl border border-slate-700">
+                  <strong className="text-cyan-300">1. 吸收律：</strong> {renderFormattedText("A + AB = A")} 
+                  <span className="text-slate-400 text-sm ml-2">(大食細)</span>
+                </li>
+                <li className="bg-slate-900/50 p-4 rounded-xl border border-slate-700">
+                  <strong className="text-cyan-300">2. 冗餘律 (極常用)：</strong> {renderFormattedText("X + X'Y = X + Y")}
+                  <br/><span className="text-slate-400 text-sm">解說：出面有原身 X，入面有反相 X'，個 X' 係多餘嘅，直接刪除！</span>
+                </li>
+                <li className="bg-slate-900/50 p-4 rounded-xl border border-slate-700">
+                  <strong className="text-cyan-300">3. 重複使用法：</strong> {renderFormattedText("X = X + X")} 
+                  <br/><span className="text-slate-400 text-sm">解說：將一項複製，分俾其他項做合併。</span>
+                </li>
               </ul>
-              <div className="bg-slate-950 p-4 rounded-xl font-mono text-sm text-emerald-400 mt-4 border border-emerald-900/30">
-                // 24/25 Past Paper 實戰化簡<br/>
-                {renderFormattedText("A'BC + AB'C' + A'B'C' + AB'C")}<br/>
-                {renderFormattedText("= A'BC + B'C'(A + A') + AB'C")}<br/>
-                {renderFormattedText("= A'BC + B'C' + AB'C")}<br/>
-                {renderFormattedText("= A'BC + B'(C' + AC)  <-- 冗餘律")}<br/>
-                {renderFormattedText("= A'BC + B'(C' + A)")}<br/>
-                {renderFormattedText("= A'BC + B'C' + AB'")} (完)
+
+              <h4 className="text-lg font-bold text-white mt-6 border-t border-slate-700 pt-6"> NAND/NOR Cost 成本計算</h4>
+              <p className="text-slate-300 text-sm">如果題目要求「只用 NAND gates」，首先要為算式加上**雙重否定 (Double Inversion)**，然後用 DeMorgan 將最底層嘅 <span className="font-mono text-cyan-300">+</span> 變做 <span className="font-mono text-cyan-300">·</span>。</p>
+              <div className="bg-slate-900 p-4 rounded-xl border border-slate-700 text-sm text-slate-300 font-mono">
+                Cost 公式：<br/>
+                <span className="text-emerald-400 font-bold">Cost = Total Gates (邏輯閘總數) + Total Inputs (輸入線總數)</span>
+                <br/><br/>
+                <span className="text-red-400">🚨 注意：</span> 就算只係一個 A 變成 A'，都要用一隻 2-input NAND 當 NOT gate 用 (計 1 個 gate 同 2 條 inputs)！
               </div>
             </div>
           </section>
 
           {/* Section 2 */}
-          <section className="space-y-6">
-            <h2 className="text-2xl font-bold text-purple-400 flex items-center gap-2 pb-2 border-b border-purple-900/30">
-              <span className="bg-purple-900/50 p-2 rounded-lg">2</span> K-map 圖解與 MUX
+          <section className="space-y-6 mt-12">
+            <h2 className="text-2xl font-bold text-purple-400 flex items-center gap-3 pb-3 border-b border-purple-900/30">
+              <span className="bg-purple-900/50 p-2 rounded-xl">2</span> 組合邏輯 (K-map 與 MUX)
             </h2>
-            <div className="bg-slate-800/40 p-6 rounded-2xl border border-slate-700/50 space-y-4">
-              <h3 className="text-xl font-bold text-white">4-Variable K-map 實戰圈法</h3>
-              <p className="text-slate-300">例子：{renderFormattedText("F = \\sum m(0,2,8,10) + d(3,7,11,15)")}</p>
-              <div className="overflow-x-auto bg-slate-900 p-4 rounded-lg">
-                <table className="w-full text-center border-collapse">
+            
+            <div className="bg-slate-800/40 p-5 md:p-8 rounded-3xl border border-slate-700/50 space-y-6 shadow-xl">
+              <h3 className="text-xl font-bold text-white flex items-center gap-2"><CheckCircle2 className="text-purple-400 w-5 h-5"/> SOP 與 POS 極速互換</h3>
+              <ul className="list-disc list-inside space-y-2 text-slate-300">
+                <li><strong>SOP (Sum of Products)：</strong> 符號 {renderFormattedText("∑m")}。專注 Output = 1。見 1 寫原字母，見 0 寫反相 (')。</li>
+                <li><strong>POS (Product of Sums)：</strong> 符號 {renderFormattedText("∏M")}。專注 Output = 0。見 0 寫原字母，見 1 寫反相 (')。</li>
+              </ul>
+              <div className="bg-slate-900 p-4 rounded-xl border border-slate-700 text-emerald-400 font-mono text-sm md:text-base">
+                互補法則：3-bit 系統 (0-7)。<br/>
+                如果 SOP 係 {renderFormattedText("F = \\sum m(0,1,3,5)")}<br/>
+                咁 POS 就係補齊淨低嘅數字：{renderFormattedText("F = \\prod M(2,4,6,7)")}
+              </div>
+            </div>
+
+            <div className="bg-slate-800/40 p-5 md:p-8 rounded-3xl border border-slate-700/50 space-y-6 shadow-xl overflow-hidden">
+              <h3 className="text-xl font-bold text-white flex items-center gap-2"><CheckCircle2 className="text-purple-400 w-5 h-5"/> 4-Variable K-map 實戰圖解</h3>
+              <p className="text-slate-300">
+                邊緣 Gray Code 排序必須係 <span className="font-mono bg-slate-900 px-2 py-1 rounded">00, 01, 11, 10</span>。<br/>
+                實戰示範：{renderFormattedText("F = \\sum m(0,2,8,10) + d(3,7,11,15)")}
+              </p>
+              
+              <div className="overflow-x-auto bg-slate-900 p-4 rounded-xl border border-slate-700">
+                <table className="w-full text-center border-collapse min-w-[300px]">
                   <thead>
                     <tr className="border-b border-slate-700 text-slate-400">
-                      <th className="p-2 border-r border-slate-700">AB \ CD</th>
-                      <th className="p-2">00</th><th className="p-2">01</th><th className="p-2">11</th><th className="p-2">10</th>
+                      <th className="p-3 border-r border-slate-700">AB \ CD</th>
+                      <th className="p-3">00</th><th className="p-3">01</th><th className="p-3">11</th><th className="p-3">10</th>
                     </tr>
                   </thead>
-                  <tbody className="font-mono text-lg">
+                  <tbody className="font-mono text-lg md:text-xl">
                     <tr>
-                      <td className="p-2 border-r border-slate-700 text-slate-400">00</td>
-                      <td className="p-2 text-emerald-400 font-bold bg-emerald-900/20">[1]</td><td className="p-2">0</td><td className="p-2 text-slate-500">X</td><td className="p-2 text-emerald-400 font-bold bg-emerald-900/20">[1]</td>
+                      <td className="p-3 border-r border-slate-700 text-slate-400">00</td>
+                      <td className="p-3 text-yellow-400 font-bold bg-yellow-900/20 border-2 border-yellow-500/50 rounded-tl-lg">[1]</td>
+                      <td className="p-3">0</td>
+                      <td className="p-3 text-cyan-400 font-bold bg-cyan-900/20 border-t-2 border-cyan-500/50">X</td>
+                      <td className="p-3 text-yellow-400 font-bold bg-yellow-900/20 border-2 border-yellow-500/50 rounded-tr-lg">[1]</td>
                     </tr>
                     <tr>
-                      <td className="p-2 border-r border-slate-700 text-slate-400">01</td>
-                      <td className="p-2">0</td><td className="p-2">0</td><td className="p-2 text-slate-500">X</td><td className="p-2">0</td>
+                      <td className="p-3 border-r border-slate-700 text-slate-400">01</td>
+                      <td className="p-3">0</td><td className="p-3">0</td>
+                      <td className="p-3 text-cyan-400 font-bold bg-cyan-900/20 border-x-2 border-cyan-500/50">X</td>
+                      <td className="p-3">0</td>
                     </tr>
                     <tr>
-                      <td className="p-2 border-r border-slate-700 text-slate-400">11</td>
-                      <td className="p-2">0</td><td className="p-2">0</td><td className="p-2 text-slate-500">X</td><td className="p-2">0</td>
+                      <td className="p-3 border-r border-slate-700 text-slate-400">11</td>
+                      <td className="p-3">0</td><td className="p-3">0</td>
+                      <td className="p-3 text-cyan-400 font-bold bg-cyan-900/20 border-x-2 border-cyan-500/50">X</td>
+                      <td className="p-3">0</td>
                     </tr>
                     <tr>
-                      <td className="p-2 border-r border-slate-700 text-slate-400">10</td>
-                      <td className="p-2 text-emerald-400 font-bold bg-emerald-900/20">[1]</td><td className="p-2">0</td><td className="p-2 text-slate-500">X</td><td className="p-2 text-emerald-400 font-bold bg-emerald-900/20">[1]</td>
+                      <td className="p-3 border-r border-slate-700 text-slate-400">10</td>
+                      <td className="p-3 text-yellow-400 font-bold bg-yellow-900/20 border-2 border-yellow-500/50 rounded-bl-lg">[1]</td>
+                      <td className="p-3">0</td>
+                      <td className="p-3 text-cyan-400 font-bold bg-cyan-900/20 border-b-2 border-cyan-500/50">X</td>
+                      <td className="p-3 text-yellow-400 font-bold bg-yellow-900/20 border-2 border-yellow-500/50 rounded-br-lg">[1]</td>
                     </tr>
                   </tbody>
                 </table>
               </div>
-              <p className="text-emerald-400 font-bold mt-2">✨ 圈組 1 (四角群組法)：對應 {renderFormattedText("B'D'")}</p>
+              <ul className="list-disc list-inside text-slate-300 space-y-2 mt-4">
+                <li><span className="text-yellow-400 font-bold">黃色圈組 (四角群組法)：</span> 最左最右、最上最下係相連的！四個角對應 <span className="font-mono bg-slate-900 px-2 py-1 rounded text-yellow-400">{renderFormattedText("B'D'")}</span></li>
+                <li><span className="text-cyan-400 font-bold">藍色圈組 (食埋啲 X)：</span> 將所有 X 當成 1 嚟圈成一直條，對應 <span className="font-mono bg-slate-900 px-2 py-1 rounded text-cyan-400">CD</span></li>
+              </ul>
             </div>
 
-            <div className="bg-slate-800/40 p-6 rounded-2xl border border-slate-700/50 space-y-4">
-              <h3 className="text-xl font-bold text-white">4-to-1 MUX 實作法則</h3>
-              <p className="text-slate-300">用 A, B 作 Selector，觀察 F 與 C 嘅關係：</p>
-              <ul className="list-disc list-inside space-y-2 pl-4 text-slate-300 font-mono">
-                <li>F 同 C 一模一樣 $\rightarrow$ 駁去 C</li>
-                <li>F 同 C 相反 $\rightarrow$ 駁去 C'</li>
-                <li>F 永遠係 0 $\rightarrow$ 駁去 0 (Ground)</li>
-                <li>F 永遠係 1 $\rightarrow$ 駁去 1 (Vcc)</li>
+            <div className="bg-slate-800/40 p-5 md:p-8 rounded-3xl border border-slate-700/50 space-y-6 shadow-xl">
+              <h3 className="text-xl font-bold text-white flex items-center gap-2"><CheckCircle2 className="text-purple-400 w-5 h-5"/> MUX 4-to-1 神級推導法</h3>
+              <p className="text-slate-300">將 A, B 駁去 Selectors，留低 C 作為 Data Inputs (D0 - D3)。兩行一組觀察 F 同 C 嘅關係：</p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm md:text-base font-mono">
+                <div className="bg-slate-900 p-4 rounded-xl border border-slate-700">
+                  <span className="text-slate-500 block mb-2">// F 同 C 一模一樣</span>
+                  C=0 → F=0<br/>C=1 → F=1<br/>
+                  <span className="text-emerald-400 font-bold mt-2 block">D_x 駁去 C</span>
+                </div>
+                <div className="bg-slate-900 p-4 rounded-xl border border-slate-700">
+                  <span className="text-slate-500 block mb-2">// F 同 C 完全相反</span>
+                  C=0 → F=1<br/>C=1 → F=0<br/>
+                  <span className="text-cyan-400 font-bold mt-2 block">D_x 駁去 C'</span>
+                </div>
+                <div className="bg-slate-900 p-4 rounded-xl border border-slate-700">
+                  <span className="text-slate-500 block mb-2">// F 永遠係 0</span>
+                  C=0 → F=0<br/>C=1 → F=0<br/>
+                  <span className="text-slate-300 font-bold mt-2 block">D_x 駁去 0 (地線)</span>
+                </div>
+                <div className="bg-slate-900 p-4 rounded-xl border border-slate-700">
+                  <span className="text-slate-500 block mb-2">// F 永遠係 1</span>
+                  C=0 → F=1<br/>C=1 → F=1<br/>
+                  <span className="text-yellow-400 font-bold mt-2 block">D_x 駁去 1 (Vcc)</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-slate-800/40 p-5 md:p-8 rounded-3xl border border-slate-700/50 space-y-6 shadow-xl">
+              <h3 className="text-xl font-bold text-white flex items-center gap-2"><CheckCircle2 className="text-purple-400 w-5 h-5"/> Decoder 實作 Full Adder</h3>
+              <p className="text-slate-300">用 3-to-8 Decoder，輸入 X, Y, Z。</p>
+              <ul className="list-disc list-inside space-y-3 pl-4 text-slate-300">
+                <li><strong>Sum (S) = {renderFormattedText("\\sum m(1, 2, 4, 7)")}</strong><br/><span className="text-sm ml-6 text-slate-400">→ 將 Decoder 嘅 1, 2, 4, 7 號腳駁入 OR gate。</span></li>
+                <li><strong>Carry (C) = {renderFormattedText("\\sum m(3, 5, 6, 7)")}</strong><br/><span className="text-sm ml-6 text-slate-400">→ 將 Decoder 嘅 3, 5, 6, 7 號腳駁入另一隻 OR gate。</span></li>
               </ul>
             </div>
           </section>
 
           {/* Section 3 */}
-          <section className="space-y-6">
-            <h2 className="text-2xl font-bold text-orange-400 flex items-center gap-2 pb-2 border-b border-orange-900/30">
-              <span className="bg-orange-900/50 p-2 rounded-lg">3</span> 順序邏輯 Counters (Q3)
+          <section className="space-y-6 mt-12">
+            <h2 className="text-2xl font-bold text-orange-400 flex items-center gap-3 pb-3 border-b border-orange-900/30">
+              <span className="bg-orange-900/50 p-2 rounded-xl">3</span> 順序邏輯 Counters
             </h2>
-            <div className="bg-slate-800/40 p-6 rounded-2xl border border-slate-700/50 space-y-4">
-              <h3 className="text-xl font-bold text-white">JK Flip-Flop 狀態轉移口訣</h3>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
-                <div className="bg-slate-900 p-4 rounded-xl border border-slate-700">
-                  <span className="text-slate-400 block mb-1">0 變 1 (Set)</span>
-                  <span className="font-mono text-xl text-yellow-400">{renderFormattedText("J=1, K=X")}</span>
+            
+            <div className="bg-slate-800/40 p-5 md:p-8 rounded-3xl border border-slate-700/50 space-y-6 shadow-xl">
+              <h3 className="text-xl font-bold text-white flex items-center gap-2"><CheckCircle2 className="text-orange-400 w-5 h-5"/> JK Flip-Flop 狀態轉移口訣</h3>
+              <p className="text-slate-300">要填 Transition Table，記住呢四句：</p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4 font-mono text-sm md:text-base">
+                <div className="bg-slate-900 p-4 rounded-xl border border-slate-700 flex justify-between items-center">
+                  <span className="text-slate-300">0 變 1 (Set)</span>
+                  <span className="text-emerald-400 font-bold text-lg">{renderFormattedText("J=1, K=X")}</span>
                 </div>
-                <div className="bg-slate-900 p-4 rounded-xl border border-slate-700">
-                  <span className="text-slate-400 block mb-1">1 變 0 (Reset)</span>
-                  <span className="font-mono text-xl text-yellow-400">{renderFormattedText("J=X, K=1")}</span>
+                <div className="bg-slate-900 p-4 rounded-xl border border-slate-700 flex justify-between items-center">
+                  <span className="text-slate-300">1 變 0 (Reset)</span>
+                  <span className="text-emerald-400 font-bold text-lg">{renderFormattedText("J=X, K=1")}</span>
+                </div>
+                <div className="bg-slate-900 p-4 rounded-xl border border-slate-700 flex justify-between items-center">
+                  <span className="text-slate-400">0 變 0 (保持)</span>
+                  <span className="text-slate-300 font-bold">{renderFormattedText("J=0, K=X")}</span>
+                </div>
+                <div className="bg-slate-900 p-4 rounded-xl border border-slate-700 flex justify-between items-center">
+                  <span className="text-slate-400">1 變 1 (保持)</span>
+                  <span className="text-slate-300 font-bold">{renderFormattedText("J=X, K=0")}</span>
                 </div>
               </div>
+              <p className="text-red-400 text-sm mt-4 font-bold border-t border-slate-700 pt-4">
+                🚨 注意：Sequence 中無出現過嘅數字 (Unused States)，佢哋嘅 Next State 同所有 J,K 輸入，一律填滿 X (Don't care)！
+              </p>
             </div>
 
-            <div className="bg-slate-800/40 p-6 rounded-2xl border border-slate-700/50 space-y-4">
-              <h3 className="text-xl font-bold text-white">Asynchronous Counter (非同步 - Mod-13)</h3>
-              <p className="text-slate-300">Mod-13 代表數 0 到 12。去到 13 嗰一瞬間要即刻 Reset！</p>
-              <p className="text-slate-300 bg-red-950/30 p-4 rounded-lg border border-red-900/50">
-                13 對應二進制 {renderFormattedText("1101_2")} (即 Q3=1, Q2=1, Q1=0, Q0=1)。<br/>
-                將 <strong>Q3, Q2, Q0</strong> 駁入一隻 NAND gate，再駁去所有 Flip-flop 嘅 CLR (Clear) 腳。
-              </p>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="bg-slate-800/40 p-5 rounded-3xl border border-slate-700/50 shadow-xl">
+                <h3 className="text-lg font-bold text-white flex items-center gap-2 mb-4"><CheckCircle2 className="text-orange-400 w-5 h-5"/> 計數器神級改裝</h3>
+                <p className="text-slate-300 text-sm mb-4">將舊 Sequence 改為新 Sequence，千祈唔好重新畫過 K-map！</p>
+                <div className="bg-slate-900 p-4 rounded-xl border border-slate-700 font-mono text-xs md:text-sm text-cyan-300">
+                  舊：7, 0, 6, 1, 5...<br/>
+                  新：9, 2, 8, 3, 7...<br/><br/>
+                  <span className="text-emerald-400">觀察：新數字全部 = 舊數字 + 2</span><br/><br/>
+                  做法：喺舊 Output 加上 4-bit Binary Adder，設定加 2 (0010_2) 即完成改裝！
+                </div>
+              </div>
+
+              <div className="bg-slate-800/40 p-5 rounded-3xl border border-slate-700/50 shadow-xl">
+                <h3 className="text-lg font-bold text-white flex items-center gap-2 mb-4"><CheckCircle2 className="text-orange-400 w-5 h-5"/> 非同步計數器 (Mod-13)</h3>
+                <p className="text-slate-300 text-sm mb-4">Asynchronous Counter 特性：去到目標數字瞬間即刻 Reset。</p>
+                <div className="bg-red-950/30 p-4 rounded-xl border border-red-900/50 font-mono text-xs md:text-sm text-red-200">
+                  Mod-13 代表數 0 到 12。<br/>
+                  當去到 13 ({renderFormattedText("1101_2")}) 時要瞬間清零。<br/><br/>
+                  接駁：將等於 1 嘅腳 (Q3, Q2, Q0) 駁入一隻 NAND gate，NAND 輸出駁去所有 Flip-flop 嘅 CLR 腳。
+                </div>
+              </div>
             </div>
           </section>
 
           {/* Section 4 */}
-          <section className="space-y-6">
-            <h2 className="text-2xl font-bold text-emerald-400 flex items-center gap-2 pb-2 border-b border-emerald-900/30">
-              <span className="bg-emerald-900/50 p-2 rounded-lg">4</span> 模擬電路與 CMOS (Q4)
+          <section className="space-y-6 mt-12">
+            <h2 className="text-2xl font-bold text-emerald-400 flex items-center gap-3 pb-3 border-b border-emerald-900/30">
+              <span className="bg-emerald-900/50 p-2 rounded-xl">4</span> 模擬電路與 CMOS
             </h2>
-            <div className="bg-slate-800/40 p-6 rounded-2xl border border-slate-700/50 space-y-4">
-              <h3 className="text-xl font-bold text-white">CMOS 電路設計口訣</h3>
-              <p className="text-slate-300">題目要求實作 {renderFormattedText("F = (A+B) \\cdot C")}</p>
-              <ul className="list-none space-y-3 mt-4">
-                <li className="bg-slate-900 p-4 rounded-xl border border-slate-700">
-                  <span className="font-bold text-emerald-400 block mb-1">NMOS (Pull-down 駁地線)</span>
-                  加號 (+) = <strong>並聯</strong>，乘號 (\\cdot) = <strong>串聯</strong>。<br/>
-                  <span className="text-sm text-slate-400">做法：A 同 B 並聯，然後成組同 C 串聯。</span>
-                </li>
-                <li className="bg-slate-900 p-4 rounded-xl border border-slate-700">
-                  <span className="font-bold text-red-400 block mb-1">PMOS (Pull-up 駁 Vdd)</span>
-                  加號 (+) = <strong>串聯</strong>，乘號 (\\cdot) = <strong>並聯</strong>。 (同 NMOS 相反！)<br/>
-                  <span className="text-sm text-slate-400">做法：A 同 B 串聯，然後成組同 C 並聯。</span>
-                </li>
-              </ul>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="bg-slate-800/40 p-5 md:p-8 rounded-3xl border border-slate-700/50 space-y-6 shadow-xl">
+                <h3 className="text-lg font-bold text-white flex items-center gap-2"><CheckCircle2 className="text-emerald-400 w-5 h-5"/> ADC / DAC 送分公式</h3>
+                <ul className="list-none space-y-3 font-mono text-sm md:text-base">
+                  <li className="bg-slate-900 p-3 rounded-lg border border-slate-700">
+                    <span className="text-cyan-400 block mb-1">Flash ADC (最快):</span>
+                    Comparators = {renderFormattedText("2^n - 1")}<br/>
+                    Step Size = {renderFormattedText("V_{ref} / 2^n")}
+                  </li>
+                  <li className="bg-slate-900 p-3 rounded-lg border border-slate-700">
+                    <span className="text-purple-400 block mb-1">Dual-slope ADC:</span>
+                    {renderFormattedText("t_2 = t_1 \\times (V_{in} / V_{ref})")}
+                  </li>
+                  <li className="bg-slate-900 p-3 rounded-lg border border-slate-700">
+                    <span className="text-yellow-400 block mb-1">R-2R DAC:</span>
+                    % Res = {renderFormattedText("(1 / (2^n - 1)) \\times 100\\%")}<br/>
+                    {renderFormattedText("V_{out} = V_{High} \\times (Input / 2^n)")}
+                  </li>
+                </ul>
+              </div>
+
+              <div className="bg-slate-800/40 p-5 md:p-8 rounded-3xl border border-slate-700/50 space-y-6 shadow-xl">
+                <h3 className="text-lg font-bold text-white flex items-center gap-2"><CheckCircle2 className="text-emerald-400 w-5 h-5"/> CMOS 邏輯設計</h3>
+                <p className="text-slate-300 text-sm mb-4">實作 {renderFormattedText("F = (A+B) \\cdot C")}</p>
+                <div className="space-y-3 font-mono text-sm">
+                  <div className="bg-slate-900 p-3 rounded-lg border border-slate-700">
+                    <span className="text-blue-400 font-bold block mb-1">NMOS (Pull-down 駁地線)</span>
+                    <span className="text-slate-300">+ = 並聯, · = 串聯</span><br/>
+                    A同B並聯，然後同C串聯。
+                  </div>
+                  <div className="bg-slate-900 p-3 rounded-lg border border-slate-700">
+                    <span className="text-red-400 font-bold block mb-1">PMOS (Pull-up 駁 Vdd)</span>
+                    <span className="text-slate-300">+ = 串聯, · = 並聯 (相反!)</span><br/>
+                    A同B串聯，然後同C並聯。
+                  </div>
+                </div>
+              </div>
             </div>
 
-            <div className="bg-slate-800/40 p-6 rounded-2xl border border-slate-700/50 space-y-4">
-              <h3 className="text-xl font-bold text-white">Power Amplifiers (Class AB)</h3>
-              <p className="text-slate-300">
-                <strong>致命缺點：</strong> 如果用電阻 (Resistors) 做 Biasing，會引發 <strong>Thermal Runaway (熱失控)</strong>，電流越流越大燒毀電路。<br/><br/>
-                <strong>解決方案：</strong> 換成 <strong>Diodes (二極管)</strong>，完美穩定偏壓並消除交越失真 (Crossover Distortion)。
-              </p>
+            <div className="bg-slate-800/40 p-5 md:p-8 rounded-3xl border border-slate-700/50 space-y-6 shadow-xl">
+              <h3 className="text-xl font-bold text-white flex items-center gap-2"><CheckCircle2 className="text-emerald-400 w-5 h-5"/> Power Amplifiers (功率放大器)</h3>
+              <div className="bg-red-950/20 p-4 rounded-xl border border-red-900/30 mb-4">
+                <p className="text-red-300 text-sm">
+                  <strong className="text-red-400">Class AB 致命缺點：</strong> 用電阻 (Resistors) 做 Biasing 會引發 <strong>Thermal Runaway (熱失控)</strong>，燒毀電路。<br/>
+                  <strong className="text-emerald-400 mt-2 block">解決方案：</strong> 換成 <strong>Diodes (二極管)</strong>，完美穩定偏壓並消除 Crossover Distortion。
+                </p>
+              </div>
+
+              <div className="bg-slate-950 p-5 rounded-2xl font-mono text-sm md:text-base text-cyan-300 border border-cyan-900/30 overflow-x-auto shadow-inner">
+                <span className="text-slate-500 block mb-2">// 效率 (η) 計算 6 步曲 (殺手題)</span>
+                [1] Peak Voltage:  V_p = V_pp / 2<br/>
+                [2] Peak Current:  I_p = V_p / R_L<br/>
+                [3] DC 電流:        I_dc = (2 × I_p) / π<br/>
+                [4] DC Input Pwr:  P_in = V_cc × I_dc<br/>
+                [5] AC Output Pwr: P_out= (V_p × I_p) / 2<br/>
+                [6] 效率 (Eff):     η = (P_out / P_in) × 100%
+              </div>
             </div>
           </section>
 
           <div className="flex justify-center pt-8">
-            <button onClick={() => setView('game')} className="px-8 py-4 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white rounded-2xl font-bold text-xl transition-all shadow-[0_0_20px_rgba(6,182,212,0.3)] flex items-center gap-2">
-              <Play className="w-5 h-5 fill-current" /> 溫完，即刻去實戰！
+            <button onClick={() => setView('game')} className="px-8 py-5 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white rounded-2xl font-bold text-xl md:text-2xl transition-all shadow-[0_0_30px_rgba(6,182,212,0.4)] hover:shadow-[0_0_40px_rgba(6,182,212,0.6)] hover:scale-105 active:scale-95 flex items-center gap-3">
+              <Play className="w-6 h-6 fill-current" /> 溫完，即刻去實戰！
             </button>
           </div>
         </div>
