@@ -1,3 +1,4 @@
+//v1.0 - 2026-05-07
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { CheckCircle2, XCircle, ChevronRight, ChevronLeft, RefreshCw, BookOpen, ShieldAlert, MonitorPlay, FileText, Save, Cpu, Menu, X, AlertTriangle, BarChart2, Filter, Play, LogOut, BookMarked, Lightbulb, PenTool, Trash2, Type } from 'lucide-react';
 
