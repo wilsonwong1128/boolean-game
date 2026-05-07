@@ -1,209 +1,297 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { CheckCircle2, XCircle, ChevronRight, ChevronLeft, RefreshCw, BookOpen, ShieldAlert, MonitorPlay, FileText, Save, Cpu, Menu, X, AlertTriangle, BarChart2, Filter } from 'lucide-react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { CheckCircle2, XCircle, ChevronRight, ChevronLeft, RefreshCw, BookOpen, ShieldAlert, MonitorPlay, FileText, Save, Cpu, Menu, X, AlertTriangle, BarChart2, Filter, Play, LogOut, BookMarked, Lightbulb, PenTool, Trash2 } from 'lucide-react';
 
-// V5.1 完美排版題庫
-const NEW_TASKS = [
-  {
-    level: 1, title: "Task A：邏輯代數化簡 (24/25 Sem 2 Q1)", isBoss: false,
-    steps: [
-      { currentExpression: "A'BC + AB'C' + A'B'C' + AB'C", focus: "A'B'C' + AB'C'", question: "根據 24/25 Past Paper，第一步先處理中間兩項，抽 B'C' 出嚟結果係？", options: ["A'B'C", "B'C'", "A'", "AB'"], correct: "B'C'", explanation: "A'B'C' + AB'C' 抽 B'C' 出來，變成 B'C'(A' + A) = B'C'(1) = B'C'。" },
-      { currentExpression: "A'BC + B'C' + AB'C", focus: "AB'C", question: "第二步：留意原本算式有 A'B'C' 同 AB'C'，其實 AB'C' 亦可以同第四項 AB'C 合併 (重複使用法)。AB'C' + AB'C 抽 AB' 出嚟會變成？", options: ["AB'", "AC", "B'C", "A'B'"], correct: "AB'", explanation: "AB'C' + AB'C = AB'(C' + C) = AB'。將一個項重複使用去消除其他項，係拆題神技！" },
-      { currentExpression: "A'BC + B'C' + AB'", focus: "全部", question: "第三步：結合結果，第一項 A'BC 無得再進一步抽。最終答案係？", options: ["A'BC + B'C' + AB'", "A + B + C", "B'C' + AB'", "1"], correct: "A'BC + B'C' + AB'", explanation: "完美擊殺！呢條就係 Past Paper 嘅滿分答案。" }
-    ]
-  },
-  {
-    level: 2, title: "Task B：極限化簡 Boss 戰 (25/26 Sem 1 Q1)", isBoss: true,
-    steps: [
-      { currentExpression: "a'cd' + abc'd' + a'b'c' + a'b'cd' + ab'd'", focus: "a'b'c' + a'b'cd'", question: "最新 25/26 魔王題！先處理標記嘅兩項，抽出 a'b' 後變成 a'b'(c' + cd')。括號內利用 (X' + XY = X' + Y) 定理，展開為咩？", options: ["a'b'c' + a'b'd'", "a'b'c'", "a'b'd'", "a'b'(c'+d)"], correct: "a'b'c' + a'b'd'", explanation: "括號內 c' + cd' 變成 c' + d'。乘返 a'b' 入去就得到 a'b'c' + a'b'd'。" },
-      { currentExpression: "a'cd' + abc'd' + a'b'c' + a'b'd' + ab'd'", focus: "a'b'd' + ab'd'", question: "第二步：算式多咗一項，但你發現標記嘅兩項有明顯公因式。抽 d' (或 b'd') 出嚟，會得出咩？", options: ["b'd'", "a'd'", "d'", "ab'd'"], correct: "b'd'", explanation: "抽 b'd' 出來：b'd'(a' + a) = b'd'(1) = b'd'。算式成功縮短為 a'cd' + abc'd' + a'b'c' + b'd'！" },
-      { currentExpression: "a'cd' + abc'd' + a'b'c' + b'd'", focus: "abc'd' + b'd'", question: "第三步：抽出 d'，變成 d'(abc' + b')。括號內再利用 (X + X'Y = X + Y) 定理，會變成點？", options: ["d'(ac' + b')", "d'(ab + b')", "d'(c' + b')", "d'(a + b')"], correct: "d'(ac' + b')", explanation: "括號內 b' + b(ac') 會變成 b' + ac'。將外面嘅 d' 乘入去，就會得出 b'd' + ac'd'！" },
-      { currentExpression: "a'cd' + ac'd' + a'b'c' + b'd'", focus: "全部", question: "最後一步：算式化簡為 a'cd' + ac'd' + a'b'c' + b'd'。仲有冇得再化簡？", options: ["無得再抽，已是最簡", "抽 a'", "抽 d'", "抽 c'"], correct: "無得再抽，已是最簡", explanation: "完美通關！這題結合了分項展開、公因式提取和進階吸收律，是 SEHS3313 極高難度試題！" }
-    ]
-  },
-  {
-    level: 3, title: "Task C：進制轉換大雜燴 (22/23 - 24/25 必考)", isBoss: false,
-    steps: [
-      { currentExpression: "3F3_{16}", focus: "全部", question: "來自 22/23 LA：將十六進制 (Hex) 3F3 轉換為八進制 (Octal)，第一步先轉二進制。3F3 嘅二進制係？", options: ["001111110011_{2}", "1111110011_{2}", "001110110011_{2}", "001111110111_{2}"], correct: "001111110011_{2}", explanation: "3 = 0011, F = 1111, 3 = 0011。組合埋就係 0011 1111 0011_{2}。" },
-      { currentExpression: "001111110011_{2}", focus: "全部", question: "將二進制 001111110011_{2} 轉為八進制 (每 3 bits 一組)，結果係？", options: ["1763_{8}", "373_{8}", "1753_{8}", "763_{8}"], correct: "1763_{8}", explanation: "每 3 bits 分組：001 (1), 111 (7), 110 (6), 011 (3)。所以係 1763_{8}。" },
-      { currentExpression: "(0.78)_{10}", focus: "全部", question: "來自 23/24 Sem 2：將十進制小數 0.78 轉換為 4-bit 二進制小數。第一步 0.78 \\times 2 = 1.56 (取 1)。繼續乘落去，答案係？", options: ["0.1100_{2}", "0.1011_{2}", "0.1101_{2}", "0.1001_{2}"], correct: "0.1100_{2}", explanation: "0.78 \\times 2 = 1.56 (1); 0.56 \\times 2 = 1.12 (1); 0.12 \\times 2 = 0.24 (0); 0.24 \\times 2 = 0.48 (0)。順序讀取：0.1100_{2}。" }
-    ]
-  },
-  {
-    level: 4, title: "Task D：2's Complement 二進制算術 (22/23 Sem 1)", isBoss: true,
-    steps: [
-      { currentExpression: "A = 94_{10}, B = 45_{10}", focus: "全部", question: "題目要求計算 A - B (9-bit binary)。首先，45_{10} 嘅 9-bit 二進制係幾多？", options: ["000101101_{2}", "000110101_{2}", "000010110_{2}", "001011010_{2}"], correct: "000101101_{2}", explanation: "45 / 2 連續除取餘數得出 101101_{2}。補足 9-bit 就係 000101101_{2}。" },
-      { currentExpression: "-45_{10}", focus: "全部", question: "計算 000101101_{2} 嘅 2's complement (二補碼)，代表負數。結果係？", options: ["111010011_{2}", "111010010_{2}", "110101101_{2}", "111101101_{2}"], correct: "111010011_{2}", explanation: "第一步反轉 (1's comp): 111010010_{2}。第二步加 1 (2's comp): 111010011_{2}。" },
-      { currentExpression: "001011110_{2} + 111010011_{2}", focus: "全部", question: "將 A (94_{10} = 001011110_{2}) 加上 B 嘅二補碼。相加後放棄最高位溢出 (Overflow) 嘅 1，最終答案係？", options: ["000110001_{2}", "001110001_{2}", "000100001_{2}", "001100011_{2}"], correct: "000110001_{2}", explanation: "相加等於 (1)000110001_{2}。丟棄最左邊嘅 1，得出 000110001_{2} (轉換為十進制剛好是 49_{10}，即 94-45)。" }
-    ]
-  },
-  {
-    level: 5, title: "Task E：Canonical Form & POS/SOP", isBoss: false,
-    steps: [
-      { currentExpression: "F = \\sum m(0,1,3,5,10,12)", focus: "\\sum m", question: "來自 24/25 Sem 2：呢個表示法 (Sigma m) 代表咩意思？", options: ["Sum of Products (SOP) 的 Minterms", "Product of Sums (POS) 的 Maxterms", "Don't care conditions", "Logic Gates 的數量"], correct: "Sum of Products (SOP) 的 Minterms", explanation: "小寫 m 代表 Minterms，Sigma (∑) 代表將佢哋加埋一齊 (OR)，所以係 SOP 形式。" },
-      { currentExpression: "F = \\sum m(0,1,3,5)", focus: "全部", question: "如果一個 3-bit 系統嘅 SOP 係 F = \\sum m(0,1,3,5)，咁佢嘅 POS (Maxterms) 表示法會係咩？", options: ["\\prod M(2,4,6,7)", "\\prod M(0,1,3,5)", "\\sum m(2,4,6,7)", "\\prod M(1,3,5,7)"], correct: "\\prod M(2,4,6,7)", explanation: "Maxterms (大寫 M, 符號 ∏) 就係 Minterms 冇包含嘅剩餘數字。3-bit 總共有 0-7，缺咗 2,4,6,7，所以係 \\prod M(2,4,6,7)。" }
-    ]
-  },
-  {
-    level: 6, title: "Task F：計數器與 Excitation Table (25/26 Sem 1)", isBoss: true,
-    steps: [
-      { currentExpression: "0 \\rightarrow 1 \\rightarrow 5 \\rightarrow 7 \\rightarrow 8 \\rightarrow 10 \\rightarrow 15", focus: "15", question: "要設計呢個 Counter，最大數字係 15，需要幾多個 Flip-flops？", options: ["4", "3", "5", "8"], correct: "4", explanation: "15 嘅二進制係 1111_{2}，佔用 4 個 bits，所以必須使用 4 個 Flip-flops。" },
-      { currentExpression: "Unused States", focus: "全部", question: "題目指明「consider all states which will not be appeared as don't care state」。即係畫 K-map 時，數字 2, 3 等格仔要填咩？", options: ["X (Don't care)", "0", "1", "留空"], correct: "X (Don't care)", explanation: "將未出現嘅狀態設為 X (Don't care)，可以喺 K-map 盡量圈大啲嘅群組，極大化簡方程式。" }
-    ]
-  },
-  {
-    level: 7, title: "Task G：ADC 模數轉換器 (25/26 Sem 1)", isBoss: false,
-    steps: [
-      { currentExpression: "5-bit Flash ADC, V_{ref} = 5V", focus: "全部", question: "計算 5-bit Flash ADC 嘅 Step size (Resolution voltage)。", options: ["0.156V", "0.2V", "0.312V", "0.1V"], correct: "0.156V", explanation: "Step size = V_{ref} / 2^n = 5 / 32 = 0.15625V。" },
-      { currentExpression: "Comparators needed", focus: "全部", question: "Flash ADC 最出名就係速度快但零件多。5-bit 需要幾多個 Comparators？", options: ["31", "32", "16", "64"], correct: "31", explanation: "比較器數量公式為 (2^n) - 1。2^5 - 1 = 32 - 1 = 31 個。" }
-    ]
-  },
-  {
-    level: 8, title: "Task H：DAC 數模轉換器", isBoss: true,
-    steps: [
-      { currentExpression: "Resolution = 0.39\\%", focus: "0.39\\%", question: "來自 23/24 Sem 1 逆向題：如果已知 DAC 嘅 % Resolution 係 0.39%，佢係幾多 bit 嘅 DAC？", options: ["8-bit", "6-bit", "7-bit", "10-bit"], correct: "8-bit", explanation: "% Resolution = 1 / (2^n - 1)。0.0039 = 1 / (2^n - 1) \\rightarrow 2^n - 1 = 256.4 \\rightarrow 2^n \\approx 256 \\rightarrow n = 8。" },
-      { currentExpression: "6-bit R-2R DAC, V_{High} = 5V, Input = 011101_{2}", focus: "全部", question: "來自 25/26 Sem 1：輸入 Digital = 011101_{2} (十進制 29)。計算 Output Voltage。", options: ["2.265V", "2.5V", "1.85V", "3.12V"], correct: "2.265V", explanation: "V_{out} = V_{High} \\times (Digital / 2^n) = 5 \\times (29 / 64) = 5 \\times 0.453 = 2.265V。" }
-    ]
-  },
-  {
-    level: 9, title: "Task I：功率放大器 Power Amplifiers (24/25 Sem 2)", isBoss: true,
-    steps: [
-      { currentExpression: "Class AB (Diode Biasing)", focus: "全部", question: "加入 Diode 嘅主要作用係咩？", options: ["消除交越失真 (Crossover Distortion)", "增加放大倍數", "保護電路", "增加效率"], correct: "消除交越失真 (Crossover Distortion)", explanation: "Diode 提供 0.7V 偏壓令電晶體提早微導通，完美解決 Crossover Distortion。" },
-      { currentExpression: "V_{CC}=20V, R_{L}=8\\Omega, V_{pp}=16V", focus: "V_{pp}=16V", question: "首先，計算輸出信號嘅 Peak voltage (V_p)。", options: ["8V", "16V", "32V", "4V"], correct: "8V", explanation: "Peak-to-peak voltage (V_{pp}) 係 16V，Peak voltage (V_p) 就係佢嘅一半 = 8V。" },
-      { currentExpression: "I_{p} = 1A", focus: "全部", question: "由 Power supply (V_{CC}) 抽出嘅平均 DC 電流 (I_{dc}) 公式係 I_{dc} = 2 \\times I_p / \\pi。計算 I_{dc}。", options: ["0.636A", "0.5A", "1.414A", "1A"], correct: "0.636A", explanation: "I_{dc} = 2 \\times (1A) / 3.1416 \\approx 0.636A。" },
-      { currentExpression: "P_{in(dc)} = V_{CC} \\times I_{dc}", focus: "全部", question: "最後，計算總 DC Input Power (P_{in(dc)})。", options: ["12.72W", "20W", "10W", "16W"], correct: "12.72W", explanation: "P_{in(dc)} = V_{CC} \\times I_{dc} = 20V \\times 0.636A = 12.72W。之後計埋 P_{out} 就可以搵到 Efficiency 啦！" }
-    ]
-  },
-  {
-    level: 10, title: "Task J：Transition Table 狀態轉移表實戰", isBoss: false,
-    steps: [
-      { currentExpression: "Present = 011_{2} \\rightarrow Next = 100_{2}", focus: "0 \\rightarrow 1", question: "對 Flip-Flop A 而言，由 0 變 1。根據 JK Excitation Table，J_A 同 K_A 應該係咩？", options: ["J=1, K=X", "J=X, K=1", "J=1, K=0", "J=0, K=1"], correct: "J=1, K=X", explanation: "要 Set (0變1)，J 必須為 1，K 可以係 0 (Set) 或 1 (Toggle)，所以 K 係 X (Don't care)。" },
-      { currentExpression: "Present = 011_{2} \\rightarrow Next = 100_{2}", focus: "1 \\rightarrow 0", question: "對 Flip-Flop B 而言，由 1 變 0。J_B 同 K_B 應該係咩？", options: ["J=X, K=1", "J=1, K=X", "J=0, K=X", "J=1, K=1"], correct: "J=X, K=1", explanation: "要 Reset (1變0)，K 必須為 1，J 可以係 0 (Reset) 或 1 (Toggle)，所以 J 係 X。" }
-    ]
-  },
-  {
-    level: 11, title: "Task K：K-map 四角群組法", isBoss: false,
-    steps: [
-      { currentExpression: "K-map 群組：m(0,2,8,10)", focus: "全部", question: "畫 4-variable K-map 時，呢四個數字啱啱好喺四個角落 (Corners)。觀察二進制：0000, 0010, 1000, 1010。佢哋化簡後會得出咩？", options: ["B'D'", "A'C'", "BD'", "A'D'"], correct: "B'D'", explanation: "四個數字嘅 B 位全部都係 0，D 位全部都係 0。所以提取出嚟就係 B'D'！呢招「四角圈法」極常用！" }
-    ]
-  },
-  {
-    level: 12, title: "Task L：Multiplexer MUX 電路實作", isBoss: true,
-    steps: [
-      { currentExpression: "4-to-1 MUX 實現 F(A,B,C) = \\sum m(1,3,5,6)", focus: "全部", question: "用 A, B 作為 Selectors。當 AB=00 時 (對應 m0, m1)，m0=0, m1=1。MUX 嘅 D_0 輸入應該接駁去邊度？", options: ["接駁去 C", "接駁去 C'", "接駁去 0 (Ground)", "接駁去 1 (Vcc)"], correct: "接駁去 C", explanation: "當 AB=00，C=0 時輸出 0(m0)，C=1 時輸出 1(m1)。F 完美跟隨 C 嘅變化，所以 D_0 接去 C。" },
-      { currentExpression: "F(A,B,C) = \\sum m(1,3,5,6)", focus: "全部", question: "當 AB=11 時 (對應 m6, m7)。m6=1, m7=0。MUX 嘅 D_3 輸入應該接駁去邊度？", options: ["接駁去 C'", "接駁去 C", "接駁去 0", "接駁去 1"], correct: "接駁去 C'", explanation: "當 AB=11，C=0 時輸出 1(m6)，C=1 時輸出 0(m7)。輸出同 C 相反，所以 D_3 接去 C' (NOT C)。" }
-    ]
-  },
-  {
-    level: 13, title: "Task M：Dual-slope ADC 時間計算", isBoss: false,
-    steps: [
-      { currentExpression: "V_{in} = 1.5V, V_{ref} = 0.4V, t_{1} = 5ms", focus: "全部", question: "來自 22/23 Sem 1 Q4b：Dual-slope ADC 放電時間 t_2 嘅公式係 t_2 = t_1 \\times (V_{in} / V_{ref})。計算 t_2。", options: ["18.75ms", "1.33ms", "15ms", "20ms"], correct: "18.75ms", explanation: "代入公式：t_2 = 5ms \\times (1.5 / 0.4) = 5ms \\times 3.75 = 18.75ms。呢個時間會由 Counter 轉化做 Digital output。" }
-    ]
-  }
-];
-
-// 重寫超強大數學排版解析器 (支援 _{...}, ^^{...}, _x, ^x, \times, \rightarrow, \sum, \prod)
+// 強大數學排版解析器
 const renderFormattedText = (text) => {
   if (typeof text !== 'string') return text;
-  
-  // 正規表達式精準匹配 LaTeX 風格寫法
   const regex = /(_\{[^}]+\}|_[\w\d]+|\^\{[^}]+\}|\^[\w\d]+|\\times|\\rightarrow|\\sum|\\prod)/g;
   const parts = text.split(regex);
-  
   return parts.map((part, i) => {
     if (!part) return null;
-    
-    // 處理下標 (Subscript)
     if (part.startsWith('_')) {
       let content = part.slice(1);
-      if (content.startsWith('{') && content.endsWith('}')) {
-        content = content.slice(1, -1);
-      }
-      return <sub key={i} className="text-[0.65em] align-baseline relative -bottom-[0.3em] mx-[1px] text-cyan-200/90">{content}</sub>;
+      if (content.startsWith('{') && content.endsWith('}')) content = content.slice(1, -1);
+      return <sub key={i} className="text-[0.65em] align-baseline relative -bottom-[0.3em] mx-[1px] opacity-90">{content}</sub>;
     }
-    
-    // 處理上標 (Superscript)
     if (part.startsWith('^')) {
       let content = part.slice(1);
-      if (content.startsWith('{') && content.endsWith('}')) {
-        content = content.slice(1, -1);
-      }
-      return <sup key={i} className="text-[0.65em] align-baseline relative -top-[0.4em] mx-[1px] text-cyan-200/90">{content}</sup>;
+      if (content.startsWith('{') && content.endsWith('}')) content = content.slice(1, -1);
+      return <sup key={i} className="text-[0.65em] align-baseline relative -top-[0.4em] mx-[1px] opacity-90">{content}</sup>;
     }
-    
-    // 處理特殊符號
     if (part === '\\times') return <span key={i} className="mx-1.5 font-sans">×</span>;
     if (part === '\\rightarrow') return <span key={i} className="mx-1.5 font-sans">→</span>;
     if (part === '\\sum') return <span key={i} className="mx-1.5 text-2xl align-middle">∑</span>;
     if (part === '\\prod') return <span key={i} className="mx-1.5 text-2xl align-middle">∏</span>;
-    
     return <span key={i}>{part}</span>;
   });
+};
+
+// 18大關卡，囊括所有 Q1-Q4，SOP/POS 同 MUX 極度深化！
+const GAME_LEVELS = [
+  {
+    level: 1, title: "Task 1：進制轉換與 2's Comp", isBoss: false,
+    steps: [
+      { currentExpression: "3F3_{16}", focus: "全部", question: "將十六進制 3F3 轉換為二進制，結果係？", hint: "十六進制每一個字母/數字，對應 4 bits 嘅二進制。", options: ["001111110011_{2}", "1111110011_{2}", "001110110011_{2}", "001111110111_{2}"], correct: "001111110011_{2}", explanation: "3 = 0011, F = 1111, 3 = 0011。" },
+      { currentExpression: "001111110011_{2}", focus: "全部", question: "將頭先嘅二進制轉為八進制 (Octal)，答案係？", hint: "八進制轉換法則：由右至左，每 3 bits 圈埋做一組。", options: ["1763_{8}", "373_{8}", "1753_{8}", "763_{8}"], correct: "1763_{8}", explanation: "分組：001(1), 111(7), 110(6), 011(3)。" },
+      { currentExpression: "A = 94_{10}, B = 45_{10}", focus: "全部", question: "計算 A - B (9-bit)。首先 45_{10} 嘅 9-bit 二進制係幾多？", hint: "用連除法除 2 搵餘數，最後前面補 0 湊夠 9 個位。", options: ["000101101_{2}", "000110101_{2}", "000010110_{2}", "001011010_{2}"], correct: "000101101_{2}", explanation: "45 = 101101_2，補齊 9-bit 即 000101101_2。" },
+      { currentExpression: "-45_{10}", focus: "全部", question: "計算 000101101_{2} 嘅 2's complement (代表負數)。", hint: "2's comp 兩部曲：全部反轉，然後加 1。", options: ["111010011_{2}", "111010010_{2}", "110101101_{2}", "111101101_{2}"], correct: "111010011_{2}", explanation: "反轉得 111010010_2，加 1 得 111010011_2。" },
+      { currentExpression: "001011110_{2} + 111010011_{2}", focus: "全部", question: "將 A 加上 B 嘅二補碼。相加後放棄最高位溢出，答案係？", hint: "如果有第 10 個 bit (Overflow)，直接當垃圾掉咗佢。", options: ["000110001_{2}", "001110001_{2}", "000100001_{2}", "001100011_{2}"], correct: "000110001_{2}", explanation: "相加等於 (1)000110001_2，丟棄最左邊嘅 1。" }
+    ]
+  },
+  {
+    level: 2, title: "Task 2：SOP 與 POS 深入分析", isBoss: true,
+    steps: [
+      { currentExpression: "F = \\sum m(0,1,3,5)", focus: "\\sum m", question: "呢個表示法 (Sigma m) 代表咩意思？", hint: "m 是細階，對應 Product 項；Sigma 代表將佢哋加埋。", options: ["Sum of Products (SOP) 的 Minterms", "Product of Sums (POS) 的 Maxterms", "Don't care conditions", "Logic Gates 的數量"], correct: "Sum of Products (SOP) 的 Minterms", explanation: "小寫 m 代表 Minterms，Sigma 代表將佢哋加埋一齊 (OR)。" },
+      { currentExpression: "Minterm: m_{6}", focus: "全部", question: "喺一個 3-bit (A,B,C) 系統入面，m_6 代表十進制 6 (110_2)。對應嘅邏輯代數式係咩？", hint: "Minterm 嘅規則：見 1 寫原字母，見 0 寫反相 (')。", options: ["ABC'", "A'B'C", "AB'C", "A'BC'"], correct: "ABC'", explanation: "110 之中，A=1, B=1, C=0，所以寫成 ABC'。" },
+      { currentExpression: "F = \\sum m(0,1,3,5)", focus: "全部", question: "如果係 3-bit 系統，對應嘅 POS (Maxterms) 係咩？", hint: "3-bit 有 0 到 7。POS 就係將 SOP 無出現過嘅數字搵出嚟。", options: ["\\prod M(2,4,6,7)", "\\prod M(0,1,3,5)", "\\sum m(2,4,6,7)", "\\prod M(1,3,5,7)"], correct: "\\prod M(2,4,6,7)", explanation: "Maxterms (大寫 M) 就係 Minterms 冇包含嘅剩餘數字。" },
+      { currentExpression: "F = \\prod M(0,2,4,6,8,10,12,14)", focus: "全部", question: "一個 4-bit 系統，POS 係雙數。咁對應嘅 SOP 係咩？", hint: "4-bit 系統由 0 去到 15。缺咗邊啲數字？", options: ["\\sum m(1,3,5,7,9,11,13,15)", "\\sum m(0,2,4,6,8,10,12,14)", "\\prod M(1,3,5,7)", "\\sum m(1,2,3,4)"], correct: "\\sum m(1,3,5,7,9,11,13,15)", explanation: "SOP 會包含所有未喺 POS 出現過嘅數字，即係所有單數 1, 3, 5...15。" },
+      { currentExpression: "F = AB + C", focus: "全部", question: "呢條式唔係 Standard SOP (Canonical)。喺 3-bit (A,B,C) 系統中，如果將佢展開做 Standard SOP，會包含幾多個 Minterms？", hint: "AB 欠 C，展開變 ABC+ABC' (2項)。C 欠 A,B，展開會有 4 項。加埋扣除重複有幾多項？", options: ["5個", "3個", "2個", "6個"], correct: "5個", explanation: "AB = ABC + ABC'。C = A'B'C + A'BC + AB'C + ABC。合併扣除重複的 ABC，總共有 5 項 Minterms！" }
+    ]
+  },
+  {
+    level: 3, title: "Task 3：MUX 深入實作篇", isBoss: true,
+    steps: [
+      { currentExpression: "8-to-1 MUX", focus: "全部", question: "一個 8-to-1 Multiplexer 需要幾多條 Select lines (選擇線)？", hint: "公式係 2^n = 輸入數量。", options: ["3條", "2條", "4條", "8條"], correct: "3條", explanation: "2^3 = 8，所以需要 3 條 Selectors。" },
+      { currentExpression: "4-to-1 MUX 設計 F = \\sum m(1,3,5,6)", focus: "全部", question: "用 A, B 作 Selectors。畫表後，當 AB=00 時，對應 Truth Table 邊兩行？", hint: "Truth table 按 ABC 排列。AB=00 對應頭兩行。", options: ["m_0, m_1", "m_1, m_2", "m_2, m_3", "m_0, m_3"], correct: "m_0, m_1", explanation: "AB=00 對應 C=0 (即 m0) 同 C=1 (即 m1)。" },
+      { currentExpression: "F = \\sum m(1,3,5,6)", focus: "全部", question: "當 AB=00 時 (m0=0, m1=1)，D_0 應該接去邊？", hint: "C=0時F=0，C=1時F=1。F 嘅數值同 C 係點？", options: ["接去 C", "接去 C'", "接去 0 (Ground)", "接去 1 (Vcc)"], correct: "接去 C", explanation: "F 完美跟隨 C 嘅變化，所以 D_0 接 C。" },
+      { currentExpression: "F = \\sum m(1,3,5,6)", focus: "全部", question: "當 AB=01 時 (m2=0, m3=1)，D_1 應該接去邊？", hint: "C=0時F=0，C=1時F=1。", options: ["接去 C", "接去 C'", "接去 0", "接去 1"], correct: "接去 C", explanation: "同樣地，F 跟隨 C 變化，D_1 接 C。" },
+      { currentExpression: "F = \\sum m(1,3,5,6)", focus: "全部", question: "當 AB=11 時 (m6=1, m7=0)，D_3 應該接去邊？", hint: "C=0時F=1，C=1時F=0。", options: ["接去 C'", "接去 C", "接去 0", "接去 1"], correct: "接去 C'", explanation: "輸出同 C 相反，所以 D_3 接去 C' (NOT C)。" }
+    ]
+  },
+  {
+    level: 4, title: "Task 4：Past Paper Boss (24/25 Sem 1)", isBoss: true,
+    steps: [
+      { currentExpression: "A'B'C + AB'C + ACD + BCD", focus: "A'B'C + AB'C", question: "觀察頭兩項，可以抽咩公因式？", hint: "睇下有邊啲英文字母係一模一樣嘅。", options: ["抽 B'C", "抽 AB'", "抽 A'C", "無得抽"], correct: "抽 B'C", explanation: "抽 B'C 出來，變成 B'C(A' + A) = B'C。" },
+      { currentExpression: "B'C + ACD + BCD", focus: "B'C", question: "試下將 B'C「無中生有」，配上 (1+D) 展開，會變成點？", hint: "因為 1+D 永遠等於 1，乘入去唔會改變數值。", options: ["B'C + B'CD", "B'C + D", "B'CD", "B'C + C"], correct: "B'C + B'CD", explanation: "創造出 B'CD，用嚟同後面嘅 BCD 發生關係！" },
+      { currentExpression: "B'C + B'CD + BCD + ACD", focus: "B'CD + BCD", question: "合併中間兩項，會得出咩結果？", hint: "抽 CD 出嚟。", options: ["CD", "C", "BD", "BC"], correct: "CD", explanation: "CD(B' + B) = CD。" },
+      { currentExpression: "B'C + CD + ACD", focus: "CD + ACD", question: "尾兩項再合併，得出最終答案係咩？", hint: "抽 CD 出來，會見到 (1+A)。", options: ["B'C + CD", "B'C + ACD", "C + D", "B'C + A"], correct: "B'C + CD", explanation: "CD(1+A) = CD。最終答案 B'C + CD。" }
+    ]
+  },
+  {
+    level: 5, title: "Task 5：Past Paper Boss (25/26 Sem 1)", isBoss: true,
+    steps: [
+      { currentExpression: "a'cd' + abc'd' + a'b'c' + a'b'cd' + ab'd'", focus: "a'b'c' + a'b'cd'", question: "抽出 a'b' 後展開為咩？", hint: "抽 a'b' 後會見到 c' + cd'。用冗餘律化簡。", options: ["a'b'c' + a'b'd'", "a'b'c'", "a'b'd'", "a'b'(c'+d)"], correct: "a'b'c' + a'b'd'", explanation: "c' + cd' 變成 c' + d'。乘入去得 a'b'c' + a'b'd'。" },
+      { currentExpression: "a'cd' + abc'd' + a'b'c' + a'b'd' + ab'd'", focus: "a'b'd' + ab'd'", question: "重組後，抽出公因式會得出咩？", hint: "呢兩項有咩相同字母？", options: ["b'd'", "a'd'", "d'", "ab'd'"], correct: "b'd'", explanation: "b'd'(a' + a) = b'd'。" },
+      { currentExpression: "a'cd' + abc'd' + a'b'c' + b'd'", focus: "abc'd' + b'd'", question: "抽出 d'，括號內化簡後會變成點？", hint: "d'(abc' + b')。括號內再用冗餘律。", options: ["d'(ac' + b')", "d'(ab + b')", "d'(c' + b')", "d'(a + b')"], correct: "d'(ac' + b')", explanation: "b' + b(ac') 會變成 b' + ac'。結果係 b'd' + ac'd'。" }
+    ]
+  },
+  {
+    level: 6, title: "Task 6：NAND 實作與 Cost", isBoss: false,
+    steps: [
+      { currentExpression: "Y = A'BC + B'C' + AB'", focus: "全部", question: "要只用 NAND gates 畫電路，第一步要點做？", hint: "DeMorgan 需要有大 Bar 先劈得開，點樣可以無中生有？", options: ["加上雙重否定 (Double Inversion)", "抽公因數", "變成 POS 形式", "所有加號變乘號"], correct: "加上雙重否定 (Double Inversion)", explanation: "Y = ((A'BC + B'C' + AB')')'。加兩條 Bar 唔會改變數值，但可以將 OR 變 NAND！" },
+      { currentExpression: "Cost = Total Gates + Total Inputs", focus: "全部", question: "Y = ( (A'BC)' \\cdot (B'C')' \\cdot (AB')' )'。總 Inputs 同 Cost 係幾多？", hint: "記得 A, B, C 都要分別過一隻 2-in NAND 變成 A', B', C'。然後慢慢數有幾多隻 Gate 同線。", options: ["Inputs=16, Cost=23", "Inputs=14, Cost=21", "Inputs=18, Cost=25", "Inputs=10, Cost=17"], correct: "Inputs=16, Cost=23", explanation: "Gates = 3(NOT) + 1(3-in) + 2(2-in) + 1(外層) = 7。Inputs = 6+3+2+2+3 = 16。Cost = 23。" }
+    ]
+  },
+  {
+    level: 7, title: "Task 7：K-map 卡諾圖圈組", isBoss: false,
+    steps: [
+      { currentExpression: "K-map 群組：m(0,2,8,10)", focus: "全部", question: "畫 4-variable K-map 時，呢四個數字啱啱好喺四個角落。化簡後會得出咩？", hint: "寫出佢地嘅二進制：0000, 0010, 1000, 1010。睇下邊兩個位永遠係 0？", options: ["B'D'", "A'C'", "BD'", "A'D'"], correct: "B'D'", explanation: "四個數字嘅 B 位同 D 位全部都係 0。所以提取出嚟就係 B'D'！" },
+      { currentExpression: "Unused States (例如 Counter 嘅 2, 3)", focus: "全部", question: "如果題目有未出現過嘅狀態，K-map 入面要填咩？", hint: "為咗圈出最大嘅群組，呢啲格仔可以自由當 0 或 1。", options: ["X (Don't care)", "0", "1", "留空"], correct: "X (Don't care)", explanation: "填 X 可以極大化簡方程式。" }
+    ]
+  },
+  {
+    level: 8, title: "Task 8：Decoder 砌 Full Adder", isBoss: true,
+    steps: [
+      { currentExpression: "Full Adder (X, Y, Z)", focus: "全部", question: "用 3-to-8 Decoder 實作，Sum (S) 嘅 Minterms 係咩？", hint: "當輸入有奇數個 1 時 (例如 001, 010, 100, 111)，Sum 就會係 1。", options: ["m_1, m_2, m_4, m_7", "m_3, m_5, m_6, m_7", "m_0, m_1, m_2, m_3", "m_1, m_3, m_5, m_7"], correct: "m_1, m_2, m_4, m_7", explanation: "Sum = \\sum m(1, 2, 4, 7)。" },
+      { currentExpression: "Full Adder (X, Y, Z)", focus: "全部", question: "咁 Carry (C) 嘅 Minterms 又係咩？", hint: "當輸入有兩個或以上嘅 1 時，Carry 就會進位。", options: ["m_3, m_5, m_6, m_7", "m_1, m_2, m_4, m_7", "m_0, m_3, m_6, m_7", "m_2, m_4, m_6, m_7"], correct: "m_3, m_5, m_6, m_7", explanation: "Carry = \\sum m(3, 5, 6, 7)。將呢四條線駁落一隻大 OR gate 搞掂。" }
+    ]
+  },
+  {
+    level: 9, title: "Task 9：順序邏輯 Counters", isBoss: false,
+    steps: [
+      { currentExpression: "Seq: 7, 0, 6, 1...", focus: "7", question: "呢個 Counter 最大嘅數字係 7，最少需要幾多個 bits (Flip-flops) 去設計？", hint: "7 轉換做二進制需要幾多個位？", options: ["3-bit", "4-bit", "8-bit", "2-bit"], correct: "3-bit", explanation: "7 = 111_2，佔用 3 個位元，需要 3 個 Flip-flops。" },
+      { currentExpression: "Present 6 (110_{2}) \\rightarrow Next 1 (001_{2})", focus: "1 \\rightarrow 0", question: "最高位 A 由 1 變 0。根據 JK Excitation Table，J_A 同 K_A 係？", hint: "Reset (1變0) 口訣：K 必須為 1，J 隨便。", options: ["J=X, K=1", "J=1, K=X", "J=0, K=1", "J=X, K=0"], correct: "J=X, K=1", explanation: "Reset 狀態：K 必須為 1，J 係 Don't care (X)。" }
+    ]
+  },
+  {
+    level: 10, title: "Task 10：計數器改裝與非同步", isBoss: true,
+    steps: [
+      { currentExpression: "New Seq: 9, 2, 8, 3...", focus: "全部", question: "點樣將舊 (7,0,6,1...) 改裝成呢個新 Sequence？", hint: "對比兩組數字，睇下差幾多？", options: ["喺輸出端加個 Adder 設定加 2", "重新畫過所有 K-map", "將 Flip-flop 轉做 D-type", "加入兩個 NOT gates"], correct: "喺輸出端加個 Adder 設定加 2", explanation: "新數值只係舊數值加 2。加個 4-bit Binary Adder (0010_2) 搞掂。" },
+      { currentExpression: "Mod-13 Asynchronous Counter", focus: "全部", question: "Mod-13 (數到12)，點樣接駁 NAND gate 去觸發 Reset？", hint: "13 對應二進制 1101_2。將係 1 嗰啲 Q 腳駁入 NAND。", options: ["將 Q_3, Q_2, Q_0 駁入 NAND", "將 Q_3, Q_1 駁入 NAND", "將所有 Q 駁入 NAND", "將 Q_3, Q_2, Q_1 駁入 NAND"], correct: "將 Q_3, Q_2, Q_0 駁入 NAND", explanation: "13 = 1101_2，對應 Q_3, Q_2, Q_0。當去到 13，NAND 輸出 0 觸發 CLR 腳。" }
+    ]
+  },
+  {
+    level: 11, title: "Task 11：CMOS 電路設計", isBoss: true,
+    steps: [
+      { currentExpression: "F = (A + B) \\cdot C", focus: "全部", question: "用 CMOS 畫。NMOS (Pull-down) 入面，加號同乘號代表咩？", hint: "NMOS 嘅規則同我地直覺一樣。加號似並聯定串聯？", options: ["加=並聯，乘=串聯", "加=串聯，乘=並聯", "加=NOT，乘=AND", "加=串聯，乘=串聯"], correct: "加=並聯，乘=串聯", explanation: "NMOS 世界，OR (+) 代表並聯，AND (\\cdot) 代表串聯。" },
+      { currentExpression: "F = (A + B) \\cdot C", focus: "全部", question: "咁 PMOS (Pull-up Network) 又點畫？", hint: "PMOS 永遠同 NMOS 相反！", options: ["加=串聯，乘=並聯", "加=並聯，乘=串聯", "同 NMOS 一模一樣", "加=並聯，乘=並聯"], correct: "加=串聯，乘=並聯", explanation: "PMOS 規則相反。A 同 B 會串聯，然後同 C 並聯。" }
+    ]
+  },
+  {
+    level: 12, title: "Task 12：ADC 與 DAC 計算", isBoss: false,
+    steps: [
+      { currentExpression: "5-bit Flash ADC, V_{ref} = 5V", focus: "全部", question: "計算 Step size 係幾多？", hint: "公式：Step size = V_ref / (2^n)。", options: ["0.156V", "0.2V", "0.312V", "0.1V"], correct: "0.156V", explanation: "5 / 32 = 0.15625V。" },
+      { currentExpression: "Resolution = 0.39\\%", focus: "0.39\\%", question: "如果 DAC % Resolution 係 0.39%，佢係幾多 bit 嘅 DAC？", hint: "公式：1 / (2^n - 1) = 0.0039。", options: ["8-bit", "6-bit", "7-bit", "10-bit"], correct: "8-bit", explanation: "2^n - 1 = 256.4 -> 2^n ≈ 256 -> n=8。" },
+      { currentExpression: "Dual-slope ADC, V_{in}=1.5V, V_{ref}=0.4V, t_{1}=5ms", focus: "全部", question: "計算放電時間 t_2。", hint: "公式：t_2 = t_1 * (V_in / V_ref)。", options: ["18.75ms", "1.33ms", "15ms", "20ms"], correct: "18.75ms", explanation: "5 * (1.5 / 0.4) = 18.75ms。" }
+    ]
+  },
+  {
+    level: 13, title: "Task 13：Power Amplifiers", isBoss: true,
+    steps: [
+      { currentExpression: "Class AB (Resistor Biasing)", focus: "全部", question: "用電阻 Biasing 會產生咩嚴重問題？", hint: "電晶體發熱時，電阻唔會調節電流，最後會燒毀。", options: ["Thermal Runaway (熱失控)", "Crossover Distortion", "Gain 太細", "Voltage Clipping"], correct: "Thermal Runaway (熱失控)", explanation: "導致電流越流越大，最後過熱燒毀！解決方法係換做 Diodes。" },
+      { currentExpression: "V_{pp}=16V, R_L=8\\Omega", focus: "全部", question: "計算 Peak current (I_p)。", hint: "先搵 V_p (V_pp 的一半)，然後用 V=IR。", options: ["1A", "2A", "0.5A", "8A"], correct: "1A", explanation: "V_p = 16/2 = 8V。I_p = 8/8 = 1A。" },
+      { currentExpression: "I_p=1A, V_{CC}=20V", focus: "全部", question: "計算 DC Input Power (P_{in})。", hint: "先計 I_dc = (2 * I_p) / π。然後 P_in = V_cc * I_dc。", options: ["12.72W", "20W", "10W", "16W"], correct: "12.72W", explanation: "I_dc = 2/3.1416 = 0.636A。P_in = 20 * 0.636 = 12.72W。" }
+    ]
+  }
+];
+
+// 畫板組件 (Scratchpad)
+const Scratchpad = ({ onClose }) => {
+  const canvasRef = useRef(null);
+  const [isDrawing, setIsDrawing] = useState(false);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    // 設定畫板大小
+    canvas.width = window.innerWidth * 0.9;
+    canvas.height = window.innerHeight * 0.7;
+    const ctx = canvas.getContext('2d');
+    ctx.strokeStyle = '#22d3ee'; // cyan-400
+    ctx.lineWidth = 3;
+    ctx.lineCap = 'round';
+    
+    // 防止背景捲動
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = 'auto'; };
+  }, []);
+
+  const startDrawing = (e) => {
+    const { offsetX, offsetY } = getCoordinates(e);
+    const ctx = canvasRef.current.getContext('2d');
+    ctx.beginPath();
+    ctx.moveTo(offsetX, offsetY);
+    setIsDrawing(true);
+  };
+
+  const draw = (e) => {
+    if (!isDrawing) return;
+    e.preventDefault(); // 防止手機掃動時拉郁個網頁
+    const { offsetX, offsetY } = getCoordinates(e);
+    const ctx = canvasRef.current.getContext('2d');
+    ctx.lineTo(offsetX, offsetY);
+    ctx.stroke();
+  };
+
+  const stopDrawing = () => {
+    if (!isDrawing) return;
+    const ctx = canvasRef.current.getContext('2d');
+    ctx.closePath();
+    setIsDrawing(false);
+  };
+
+  const clearCanvas = () => {
+    const canvas = canvasRef.current;
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+  };
+
+  const getCoordinates = (e) => {
+    if (e.touches && e.touches.length > 0) {
+      const bcr = canvasRef.current.getBoundingClientRect();
+      return {
+        offsetX: e.touches[0].clientX - bcr.left,
+        offsetY: e.touches[0].clientY - bcr.top
+      };
+    }
+    return { offsetX: e.nativeEvent.offsetX, offsetY: e.nativeEvent.offsetY };
+  };
+
+  return (
+    <div className="fixed inset-0 bg-slate-950/95 backdrop-blur-md z-[100] flex flex-col items-center justify-center animate-in fade-in duration-200">
+      <div className="w-[90vw] flex justify-between items-center mb-4">
+        <h2 className="text-xl font-bold text-cyan-400 flex items-center gap-2"><PenTool className="w-5 h-5"/> 隱藏草稿紙</h2>
+        <div className="flex gap-4">
+          <button onClick={clearCanvas} className="p-2 bg-red-900/40 text-red-400 rounded-lg hover:bg-red-900/60 transition-colors flex items-center gap-2">
+            <Trash2 className="w-4 h-4"/> 清除
+          </button>
+          <button onClick={onClose} className="p-2 bg-slate-800 text-slate-300 rounded-lg hover:bg-slate-700 transition-colors">
+            <X className="w-5 h-5"/>
+          </button>
+        </div>
+      </div>
+      <canvas
+        ref={canvasRef}
+        onMouseDown={startDrawing}
+        onMouseMove={draw}
+        onMouseUp={stopDrawing}
+        onMouseLeave={stopDrawing}
+        onTouchStart={startDrawing}
+        onTouchMove={draw}
+        onTouchEnd={stopDrawing}
+        className="bg-slate-900 border-2 border-slate-700 rounded-2xl shadow-[0_0_30px_rgba(34,211,238,0.1)] touch-none cursor-crosshair"
+      />
+      <p className="text-slate-500 mt-4 text-sm font-mono">你可以喺呢度計數或者畫 K-map (支援手機 Touch)</p>
+    </div>
+  );
 };
 
 export default function ExamReviewGame() {
   const [currentLevelIdx, setCurrentLevelIdx] = useState(0);
   const [currentStepIdx, setCurrentStepIdx] = useState(0);
   const [answers, setAnswers] = useState({});
-  const [view, setView] = useState('game'); 
+  const [view, setView] = useState('start');
   const [saveStatus, setSaveStatus] = useState('');
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [showOnlyMistakes, setShowOnlyMistakes] = useState(false);
+  const [hasSaveFile, setHasSaveFile] = useState(false);
+  
+  // Hint & Scratchpad States
+  const [showHint, setShowHint] = useState(false);
+  const [showScratchpad, setShowScratchpad] = useState(false);
 
-  // 讀取 LocalStorage 存檔 (v5.1)
   useEffect(() => {
-    const savedData = localStorage.getItem('sehs3313-exam-save-v5');
+    const savedData = localStorage.getItem('sehs3313-exam-save-v8');
     if (savedData) {
       try {
         const parsed = JSON.parse(savedData);
-        setAnswers(parsed.answers || {});
-        setCurrentLevelIdx(parsed.currentLevelIdx || 0);
-        setCurrentStepIdx(parsed.currentStepIdx || 0);
-        setView(parsed.view || 'game');
-        setSaveStatus('📂 存檔已恢復！');
-        setTimeout(() => setSaveStatus(''), 3000);
+        if (Object.keys(parsed.answers || {}).length > 0) {
+          setAnswers(parsed.answers);
+          setCurrentLevelIdx(parsed.currentLevelIdx || 0);
+          setCurrentStepIdx(parsed.currentStepIdx || 0);
+          setHasSaveFile(true);
+        }
       } catch (e) {
         console.error("讀取存檔失敗", e);
       }
     }
   }, []);
 
-  // 自動存檔
   useEffect(() => {
     if (Object.keys(answers).length > 0 || currentLevelIdx > 0) {
-      const dataToSave = { answers, currentLevelIdx, currentStepIdx, view };
-      localStorage.setItem('sehs3313-exam-save-v5', JSON.stringify(dataToSave));
-      setSaveStatus('💾 自動存檔中...');
-      const timer = setTimeout(() => setSaveStatus(''), 1500);
-      return () => clearTimeout(timer);
+      const dataToSave = { answers, currentLevelIdx, currentStepIdx };
+      localStorage.setItem('sehs3313-exam-save-v8', JSON.stringify(dataToSave));
+      setHasSaveFile(true);
+      if (view === 'game') {
+        setSaveStatus('💾 自動存檔中...');
+        const timer = setTimeout(() => setSaveStatus(''), 1500);
+        return () => clearTimeout(timer);
+      }
     }
   }, [answers, currentLevelIdx, currentStepIdx, view]);
 
-  const currentLevel = NEW_TASKS[currentLevelIdx];
+  const currentLevel = GAME_LEVELS[currentLevelIdx];
   const currentStep = currentLevel?.steps[currentStepIdx];
   const stepKey = `${currentLevelIdx}-${currentStepIdx}`;
   const hasAnswered = !!answers[stepKey];
   const selectedOption = answers[stepKey];
   const isCorrect = selectedOption === currentStep?.correct;
-  const totalQuestions = NEW_TASKS.reduce((acc, level) => acc + level.steps.length, 0);
+  const totalQuestions = GAME_LEVELS.reduce((acc, level) => acc + level.steps.length, 0);
 
-  // 隨機打亂選項 (每次進入新題目時重新洗牌)
   const shuffledOptions = useMemo(() => {
     if (!currentStep) return [];
-    // 複製一份原選項陣列，避免修改到原資料
     const opts = [...currentStep.options];
-    // Fisher-Yates 洗牌演算法
     for (let i = opts.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
       [opts[i], opts[j]] = [opts[j], opts[i]];
     }
     return opts;
-  }, [currentLevelIdx, currentStepIdx]); // 只有當 Level 或 Step 改變時先會重新洗牌
+  }, [currentLevelIdx, currentStepIdx]);
 
   const calculateScore = () => {
     let score = 0;
     Object.keys(answers).forEach(key => {
       const [lIdx, sIdx] = key.split('-').map(Number);
-      if (answers[key] === NEW_TASKS[lIdx].steps[sIdx].correct) score++;
+      if (answers[key] === GAME_LEVELS[lIdx].steps[sIdx].correct) score++;
     });
     return score;
   };
@@ -216,9 +304,10 @@ export default function ExamReviewGame() {
   };
 
   const handleNext = () => {
+    setShowHint(false); // Reset Hint
     if (currentStepIdx < currentLevel.steps.length - 1) {
       setCurrentStepIdx(c => c + 1);
-    } else if (currentLevelIdx < NEW_TASKS.length - 1) {
+    } else if (currentLevelIdx < GAME_LEVELS.length - 1) {
       setCurrentLevelIdx(l => l + 1);
       setCurrentStepIdx(0);
     } else {
@@ -228,11 +317,12 @@ export default function ExamReviewGame() {
   };
 
   const handlePrev = () => {
+    setShowHint(false); // Reset Hint
     if (currentStepIdx > 0) {
       setCurrentStepIdx(c => c - 1);
     } else if (currentLevelIdx > 0) {
       setCurrentLevelIdx(l => l - 1);
-      setCurrentStepIdx(NEW_TASKS[currentLevelIdx - 1].steps.length - 1);
+      setCurrentStepIdx(GAME_LEVELS[currentLevelIdx - 1].steps.length - 1);
     }
   };
 
@@ -241,15 +331,18 @@ export default function ExamReviewGame() {
       setAnswers({});
       setCurrentLevelIdx(0);
       setCurrentStepIdx(0);
+      setShowHint(false);
       setView('game');
       setIsMenuOpen(false);
-      localStorage.removeItem('sehs3313-exam-save-v5');
+      setHasSaveFile(false);
+      localStorage.removeItem('sehs3313-exam-save-v8');
     }
   };
 
   const jumpToTask = (taskIdx) => {
     setCurrentLevelIdx(taskIdx);
     setCurrentStepIdx(0);
+    setShowHint(false);
     setIsMenuOpen(false);
     setView('game');
   };
@@ -259,25 +352,9 @@ export default function ExamReviewGame() {
     return (answeredCount / totalQuestions) * 100;
   };
 
-  const renderExpression = (expr, focus) => {
-    if (!focus || focus === "全部") return <span className="text-cyan-400 font-bold">{renderFormattedText(expr)}</span>;
-    const parts = expr.split(focus);
-    if (parts.length === 1) return <span className="text-cyan-400 font-bold">{renderFormattedText(expr)}</span>;
-
-    return (
-      <span className="leading-relaxed text-cyan-400 font-bold">
-        {renderFormattedText(parts[0])}
-        <span className="inline-block mx-1.5 px-3 py-1 bg-cyan-900/60 border border-cyan-400/60 rounded-lg text-cyan-300 shadow-[0_0_15px_rgba(34,211,238,0.4)] scale-110 transform transition-all align-middle">
-          {renderFormattedText(focus)}
-        </span>
-        {renderFormattedText(parts.slice(1).join(focus))}
-      </span>
-    );
-  };
-
   const getMistakeAnalysis = () => {
     const mistakes = [];
-    NEW_TASKS.forEach((level, lIdx) => {
+    GAME_LEVELS.forEach((level, lIdx) => {
       let taskMistakes = 0;
       level.steps.forEach((step, sIdx) => {
         const uAns = answers[`${lIdx}-${sIdx}`];
@@ -293,6 +370,22 @@ export default function ExamReviewGame() {
   const mistakeAnalysis = getMistakeAnalysis();
   const answeredQuestionsCount = Object.keys(answers).length;
 
+  const renderExpression = (expr, focus) => {
+    if (!focus || focus === "全部") return <span className="text-cyan-400 font-bold">{renderFormattedText(expr)}</span>;
+    const parts = expr.split(focus);
+    if (parts.length === 1) return <span className="text-cyan-400 font-bold">{renderFormattedText(expr)}</span>;
+    return (
+      <span className="leading-relaxed text-cyan-400 font-bold">
+        {renderFormattedText(parts[0])}
+        <span className="inline-block mx-1.5 px-3 py-1 bg-cyan-900/60 border border-cyan-400/60 rounded-lg text-cyan-300 shadow-[0_0_15px_rgba(34,211,238,0.4)] scale-110 transform transition-all align-middle">
+          {renderFormattedText(focus)}
+        </span>
+        {renderFormattedText(parts.slice(1).join(focus))}
+      </span>
+    );
+  };
+
+  // --- OVERLAY: TASK MENU ---
   const TaskMenu = () => (
     <div className={`fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 transition-opacity duration-300 ${isMenuOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
       <div className={`fixed top-0 left-0 bottom-0 w-80 max-w-[80vw] bg-slate-900 border-r border-slate-800 shadow-2xl transition-transform duration-300 transform ${isMenuOpen ? 'translate-x-0' : '-translate-x-full'} overflow-y-auto`}>
@@ -303,7 +396,7 @@ export default function ExamReviewGame() {
           </button>
         </div>
         <div className="p-4 space-y-2">
-          {NEW_TASKS.map((task, idx) => {
+          {GAME_LEVELS.map((task, idx) => {
             let answeredInTask = 0;
             task.steps.forEach((_, sIdx) => { if (answers[`${idx}-${sIdx}`]) answeredInTask++; });
             const isCompleted = answeredInTask === task.steps.length;
@@ -317,7 +410,7 @@ export default function ExamReviewGame() {
               >
                 <div className="flex justify-between items-center mb-1">
                   <span className={`font-bold text-sm ${isCurrent ? 'text-cyan-400' : isCompleted ? 'text-emerald-400' : ''}`}>
-                    Task {String.fromCharCode(65 + idx)}
+                    Task {idx + 1}
                   </span>
                   {isCompleted && <CheckCircle2 className="w-4 h-4 text-emerald-500" />}
                 </div>
@@ -329,26 +422,236 @@ export default function ExamReviewGame() {
             )
           })}
           
-          <button 
-            onClick={() => { setIsMenuOpen(false); setView('report'); setShowOnlyMistakes(false); }}
-            className="w-full mt-4 p-4 rounded-xl border border-slate-700 bg-slate-800 hover:bg-slate-700 text-slate-200 transition-all flex items-center justify-center gap-2"
-          >
-            <BarChart2 className="w-5 h-5 text-purple-400" />
-            查看成績報告
+          <button onClick={() => { setIsMenuOpen(false); setView('report'); setShowOnlyMistakes(false); }} className="w-full mt-4 p-4 rounded-xl border border-slate-700 bg-slate-800 hover:bg-slate-700 text-slate-200 transition-all flex items-center justify-center gap-2">
+            <BarChart2 className="w-5 h-5 text-purple-400" /> 查看成績報告
           </button>
-
-          <button 
-            onClick={handleRestart}
-            className="w-full mt-2 p-4 rounded-xl border border-red-900/30 bg-red-950/20 hover:bg-red-900/40 text-red-400 transition-all flex items-center justify-center gap-2"
-          >
-            <RefreshCw className="w-5 h-5" />
-            重置所有紀錄
+          <button onClick={() => { setIsMenuOpen(false); setView('notes'); }} className="w-full mt-2 p-4 rounded-xl border border-slate-700 bg-slate-800 hover:bg-slate-700 text-slate-200 transition-all flex items-center justify-center gap-2">
+            <BookMarked className="w-5 h-5 text-yellow-400" /> 閱讀終極筆記
+          </button>
+          <button onClick={() => { setIsMenuOpen(false); setView('start'); }} className="w-full mt-2 p-4 rounded-xl border border-slate-700 bg-slate-800 hover:bg-slate-700 text-slate-200 transition-all flex items-center justify-center gap-2">
+            <LogOut className="w-5 h-5 text-slate-400" /> 返回首頁
+          </button>
+          <button onClick={handleRestart} className="w-full mt-6 p-4 rounded-xl border border-red-900/30 bg-red-950/20 hover:bg-red-900/40 text-red-400 transition-all flex items-center justify-center gap-2">
+            <RefreshCw className="w-5 h-5" /> 重置所有紀錄
           </button>
         </div>
       </div>
     </div>
   );
 
+  // --- VIEW: START SCREEN ---
+  if (view === 'start') {
+    return (
+      <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center p-6 relative overflow-hidden">
+        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-cyan-600/20 rounded-full blur-[120px] pointer-events-none"></div>
+        <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-purple-600/20 rounded-full blur-[120px] pointer-events-none"></div>
+        
+        <div className="max-w-2xl w-full text-center relative z-10 space-y-8">
+          <div className="inline-block mb-4 p-4 bg-slate-900/80 rounded-3xl border border-slate-800 shadow-2xl">
+            <Cpu className="w-24 h-24 text-cyan-400 mx-auto drop-shadow-[0_0_20px_rgba(34,211,238,0.5)]" />
+          </div>
+          
+          <h1 className="text-5xl md:text-6xl font-black tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-blue-500 to-purple-500">
+            SEHS3313<br/>終極特訓 RPG
+          </h1>
+          <p className="text-xl text-slate-400 font-medium max-w-lg mx-auto leading-relaxed">
+            涵蓋全卷 Q1 - Q4，加入 Assignment 變態題。<br/>由零基礎到 A+ 嘅必經之路！
+          </p>
+
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mt-12">
+            <button 
+              onClick={() => setView('game')}
+              className="w-full sm:w-auto px-8 py-5 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white rounded-2xl font-bold text-xl transition-all active:scale-95 shadow-[0_0_30px_rgba(6,182,212,0.3)] flex items-center justify-center gap-3"
+            >
+              <Play className="w-6 h-6 fill-current" />
+              {hasSaveFile ? '繼續遊戲 (Resume)' : '開始特訓 (Start)'}
+            </button>
+            <button 
+              onClick={() => setView('notes')}
+              className="w-full sm:w-auto px-8 py-5 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 rounded-2xl font-bold text-xl transition-all active:scale-95 flex items-center justify-center gap-3"
+            >
+              <BookMarked className="w-6 h-6 text-yellow-400" />
+              閱讀圖解筆記
+            </button>
+          </div>
+
+          {hasSaveFile && (
+            <div className="mt-8 pt-8 border-t border-slate-800/50">
+              <button onClick={handleRestart} className="text-red-400 hover:text-red-300 text-sm font-medium flex items-center justify-center gap-2 mx-auto transition-colors">
+                <RefreshCw className="w-4 h-4" /> 重置進度重新開始
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // --- VIEW: NOTES VIEWER ---
+  if (view === 'notes') {
+    return (
+      <div className="min-h-screen bg-slate-900 text-slate-200 font-sans">
+        <div className="sticky top-0 z-40 bg-slate-950/80 backdrop-blur-md border-b border-slate-800 px-4 py-4 flex items-center justify-between">
+          <h1 className="text-xl font-bold text-yellow-400 flex items-center gap-2">
+            <BookMarked className="w-6 h-6" /> 終極圖解筆記
+          </h1>
+          <button onClick={() => setView('start')} className="px-4 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg text-sm font-bold flex items-center gap-2 transition-colors border border-slate-700">
+            <LogOut className="w-4 h-4" /> 返回首頁
+          </button>
+        </div>
+
+        <div className="max-w-4xl mx-auto p-6 md:p-12 space-y-12 pb-24 text-lg">
+          <div className="text-center pb-8 border-b border-slate-800">
+            <h1 className="text-3xl md:text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-orange-500 mb-4">SEHS3313 Analogue and Digital Circuits</h1>
+            <p className="text-slate-400 font-mono">根據歷屆試題精煉 ． 全圖解 ． Step-by-Step</p>
+          </div>
+
+          {/* Section 1 */}
+          <section className="space-y-6">
+            <h2 className="text-2xl font-bold text-cyan-400 flex items-center gap-2 pb-2 border-b border-cyan-900/30">
+              <span className="bg-cyan-900/50 p-2 rounded-lg">1</span> 基礎邏輯與代數化簡
+            </h2>
+            <div className="bg-slate-800/40 p-6 rounded-2xl border border-slate-700/50 space-y-4">
+              <h3 className="text-xl font-bold text-white">代數化簡三大神技</h3>
+              <ul className="list-disc list-inside space-y-2 pl-4 text-slate-300">
+                <li><strong>吸收律：</strong> {renderFormattedText("A + AB = A")} (大食細)</li>
+                <li><strong>冗餘律 (極常用)：</strong> {renderFormattedText("X + X'Y = X + Y")}</li>
+                <li><strong>重複使用法：</strong> {renderFormattedText("X = X + X")} (複製分俾其他項合併)</li>
+              </ul>
+              <div className="bg-slate-950 p-4 rounded-xl font-mono text-sm text-emerald-400 mt-4 border border-emerald-900/30">
+                // 24/25 Past Paper 實戰化簡<br/>
+                {renderFormattedText("A'BC + AB'C' + A'B'C' + AB'C")}<br/>
+                {renderFormattedText("= A'BC + B'C'(A + A') + AB'C")}<br/>
+                {renderFormattedText("= A'BC + B'C' + AB'C")}<br/>
+                {renderFormattedText("= A'BC + B'(C' + AC)  <-- 冗餘律")}<br/>
+                {renderFormattedText("= A'BC + B'(C' + A)")}<br/>
+                {renderFormattedText("= A'BC + B'C' + AB'")} (完)
+              </div>
+            </div>
+          </section>
+
+          {/* Section 2 */}
+          <section className="space-y-6">
+            <h2 className="text-2xl font-bold text-purple-400 flex items-center gap-2 pb-2 border-b border-purple-900/30">
+              <span className="bg-purple-900/50 p-2 rounded-lg">2</span> K-map 圖解與 MUX
+            </h2>
+            <div className="bg-slate-800/40 p-6 rounded-2xl border border-slate-700/50 space-y-4">
+              <h3 className="text-xl font-bold text-white">4-Variable K-map 實戰圈法</h3>
+              <p className="text-slate-300">例子：{renderFormattedText("F = \\sum m(0,2,8,10) + d(3,7,11,15)")}</p>
+              <div className="overflow-x-auto bg-slate-900 p-4 rounded-lg">
+                <table className="w-full text-center border-collapse">
+                  <thead>
+                    <tr className="border-b border-slate-700 text-slate-400">
+                      <th className="p-2 border-r border-slate-700">AB \ CD</th>
+                      <th className="p-2">00</th><th className="p-2">01</th><th className="p-2">11</th><th className="p-2">10</th>
+                    </tr>
+                  </thead>
+                  <tbody className="font-mono text-lg">
+                    <tr>
+                      <td className="p-2 border-r border-slate-700 text-slate-400">00</td>
+                      <td className="p-2 text-emerald-400 font-bold bg-emerald-900/20">[1]</td><td className="p-2">0</td><td className="p-2 text-slate-500">X</td><td className="p-2 text-emerald-400 font-bold bg-emerald-900/20">[1]</td>
+                    </tr>
+                    <tr>
+                      <td className="p-2 border-r border-slate-700 text-slate-400">01</td>
+                      <td className="p-2">0</td><td className="p-2">0</td><td className="p-2 text-slate-500">X</td><td className="p-2">0</td>
+                    </tr>
+                    <tr>
+                      <td className="p-2 border-r border-slate-700 text-slate-400">11</td>
+                      <td className="p-2">0</td><td className="p-2">0</td><td className="p-2 text-slate-500">X</td><td className="p-2">0</td>
+                    </tr>
+                    <tr>
+                      <td className="p-2 border-r border-slate-700 text-slate-400">10</td>
+                      <td className="p-2 text-emerald-400 font-bold bg-emerald-900/20">[1]</td><td className="p-2">0</td><td className="p-2 text-slate-500">X</td><td className="p-2 text-emerald-400 font-bold bg-emerald-900/20">[1]</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+              <p className="text-emerald-400 font-bold mt-2">✨ 圈組 1 (四角群組法)：對應 {renderFormattedText("B'D'")}</p>
+            </div>
+
+            <div className="bg-slate-800/40 p-6 rounded-2xl border border-slate-700/50 space-y-4">
+              <h3 className="text-xl font-bold text-white">4-to-1 MUX 實作法則</h3>
+              <p className="text-slate-300">用 A, B 作 Selector，觀察 F 與 C 嘅關係：</p>
+              <ul className="list-disc list-inside space-y-2 pl-4 text-slate-300 font-mono">
+                <li>F 同 C 一模一樣 $\rightarrow$ 駁去 C</li>
+                <li>F 同 C 相反 $\rightarrow$ 駁去 C'</li>
+                <li>F 永遠係 0 $\rightarrow$ 駁去 0 (Ground)</li>
+                <li>F 永遠係 1 $\rightarrow$ 駁去 1 (Vcc)</li>
+              </ul>
+            </div>
+          </section>
+
+          {/* Section 3 */}
+          <section className="space-y-6">
+            <h2 className="text-2xl font-bold text-orange-400 flex items-center gap-2 pb-2 border-b border-orange-900/30">
+              <span className="bg-orange-900/50 p-2 rounded-lg">3</span> 順序邏輯 Counters (Q3)
+            </h2>
+            <div className="bg-slate-800/40 p-6 rounded-2xl border border-slate-700/50 space-y-4">
+              <h3 className="text-xl font-bold text-white">JK Flip-Flop 狀態轉移口訣</h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
+                <div className="bg-slate-900 p-4 rounded-xl border border-slate-700">
+                  <span className="text-slate-400 block mb-1">0 變 1 (Set)</span>
+                  <span className="font-mono text-xl text-yellow-400">{renderFormattedText("J=1, K=X")}</span>
+                </div>
+                <div className="bg-slate-900 p-4 rounded-xl border border-slate-700">
+                  <span className="text-slate-400 block mb-1">1 變 0 (Reset)</span>
+                  <span className="font-mono text-xl text-yellow-400">{renderFormattedText("J=X, K=1")}</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-slate-800/40 p-6 rounded-2xl border border-slate-700/50 space-y-4">
+              <h3 className="text-xl font-bold text-white">Asynchronous Counter (非同步 - Mod-13)</h3>
+              <p className="text-slate-300">Mod-13 代表數 0 到 12。去到 13 嗰一瞬間要即刻 Reset！</p>
+              <p className="text-slate-300 bg-red-950/30 p-4 rounded-lg border border-red-900/50">
+                13 對應二進制 {renderFormattedText("1101_2")} (即 Q3=1, Q2=1, Q1=0, Q0=1)。<br/>
+                將 <strong>Q3, Q2, Q0</strong> 駁入一隻 NAND gate，再駁去所有 Flip-flop 嘅 CLR (Clear) 腳。
+              </p>
+            </div>
+          </section>
+
+          {/* Section 4 */}
+          <section className="space-y-6">
+            <h2 className="text-2xl font-bold text-emerald-400 flex items-center gap-2 pb-2 border-b border-emerald-900/30">
+              <span className="bg-emerald-900/50 p-2 rounded-lg">4</span> 模擬電路與 CMOS (Q4)
+            </h2>
+            <div className="bg-slate-800/40 p-6 rounded-2xl border border-slate-700/50 space-y-4">
+              <h3 className="text-xl font-bold text-white">CMOS 電路設計口訣</h3>
+              <p className="text-slate-300">題目要求實作 {renderFormattedText("F = (A+B) \\cdot C")}</p>
+              <ul className="list-none space-y-3 mt-4">
+                <li className="bg-slate-900 p-4 rounded-xl border border-slate-700">
+                  <span className="font-bold text-emerald-400 block mb-1">NMOS (Pull-down 駁地線)</span>
+                  加號 (+) = <strong>並聯</strong>，乘號 (\\cdot) = <strong>串聯</strong>。<br/>
+                  <span className="text-sm text-slate-400">做法：A 同 B 並聯，然後成組同 C 串聯。</span>
+                </li>
+                <li className="bg-slate-900 p-4 rounded-xl border border-slate-700">
+                  <span className="font-bold text-red-400 block mb-1">PMOS (Pull-up 駁 Vdd)</span>
+                  加號 (+) = <strong>串聯</strong>，乘號 (\\cdot) = <strong>並聯</strong>。 (同 NMOS 相反！)<br/>
+                  <span className="text-sm text-slate-400">做法：A 同 B 串聯，然後成組同 C 並聯。</span>
+                </li>
+              </ul>
+            </div>
+
+            <div className="bg-slate-800/40 p-6 rounded-2xl border border-slate-700/50 space-y-4">
+              <h3 className="text-xl font-bold text-white">Power Amplifiers (Class AB)</h3>
+              <p className="text-slate-300">
+                <strong>致命缺點：</strong> 如果用電阻 (Resistors) 做 Biasing，會引發 <strong>Thermal Runaway (熱失控)</strong>，電流越流越大燒毀電路。<br/><br/>
+                <strong>解決方案：</strong> 換成 <strong>Diodes (二極管)</strong>，完美穩定偏壓並消除交越失真 (Crossover Distortion)。
+              </p>
+            </div>
+          </section>
+
+          <div className="flex justify-center pt-8">
+            <button onClick={() => setView('game')} className="px-8 py-4 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white rounded-2xl font-bold text-xl transition-all shadow-[0_0_20px_rgba(6,182,212,0.3)] flex items-center gap-2">
+              <Play className="w-5 h-5 fill-current" /> 溫完，即刻去實戰！
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // --- VIEW: REPORT ---
   if (view === 'report') {
     return (
       <div className="min-h-screen bg-slate-900 text-slate-100 p-4 md:p-8 font-sans">
@@ -376,6 +679,9 @@ export default function ExamReviewGame() {
             <div className="mt-8 flex justify-center flex-wrap gap-4">
               <button onClick={() => { setView('game'); setCurrentLevelIdx(0); setCurrentStepIdx(0); }} className="flex items-center gap-2 bg-slate-700 hover:bg-slate-600 text-white font-bold py-3 px-6 rounded-xl transition-all border border-slate-600">
                 返回遊戲
+              </button>
+              <button onClick={() => setView('start')} className="flex items-center gap-2 bg-slate-700 hover:bg-slate-600 text-white font-bold py-3 px-6 rounded-xl transition-all border border-slate-600">
+                返回首頁
               </button>
               <button onClick={handleRestart} className="flex items-center gap-2 bg-gradient-to-r from-red-600 to-orange-600 hover:from-red-500 hover:to-orange-500 text-white font-bold py-3 px-6 rounded-xl transition-all shadow-[0_0_20px_rgba(220,38,38,0.3)] active:scale-95">
                 <RefreshCw className="w-5 h-5" /> 重置所有紀錄
@@ -409,7 +715,7 @@ export default function ExamReviewGame() {
           </div>
 
           <div className="space-y-8 pb-12">
-            {NEW_TASKS.map((level, lIdx) => {
+            {GAME_LEVELS.map((level, lIdx) => {
               let hasContentToRender = false;
               if (!showOnlyMistakes) hasContentToRender = true;
               else {
@@ -459,7 +765,7 @@ export default function ExamReviewGame() {
                         </div>
 
                         <div className="bg-slate-800/50 p-5 rounded-lg border border-slate-700/50">
-                          <span className="text-sm text-cyan-400 mb-2 font-bold flex items-center gap-2">
+                          <span className="text-sm text-cyan-400 block mb-2 font-bold flex items-center gap-2">
                             <BookOpen className="w-4 h-4"/> 溫習重點
                           </span>
                           <p className="text-slate-300 text-base leading-relaxed">{renderFormattedText(step.explanation)}</p>
@@ -483,6 +789,7 @@ export default function ExamReviewGame() {
     );
   }
 
+  // --- VIEW: GAME ---
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 p-4 md:p-8 font-sans flex flex-col items-center relative">
       <TaskMenu />
@@ -493,19 +800,17 @@ export default function ExamReviewGame() {
         </div>
       )}
 
+      {showScratchpad && <Scratchpad onClose={() => setShowScratchpad(false)} />}
+
       <div className="max-w-3xl w-full">
         <div className="flex justify-between items-center mb-8">
           <div className="flex items-center gap-4">
-            <button 
-              onClick={() => setIsMenuOpen(true)}
-              className="p-2.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-xl transition-colors shadow-lg group"
-              title="打開任務選單"
-            >
+            <button onClick={() => setIsMenuOpen(true)} className="p-2.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-xl transition-colors shadow-lg group" title="打開任務選單">
               <Menu className="w-6 h-6 text-slate-300 group-hover:text-cyan-400 transition-colors" />
             </button>
             <h1 className="text-2xl font-black tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-500 hidden sm:flex items-center gap-2">
               <Cpu className="text-cyan-400" />
-              SEHS3313 全能溫習 RPG
+              SEHS3313 終極特訓 RPG
             </h1>
           </div>
           
@@ -517,18 +822,15 @@ export default function ExamReviewGame() {
 
         <div className="mb-8">
           <div className="flex justify-between text-xs font-medium text-slate-400 mb-2 px-1">
-            <span>Overall Progress</span>
+            <span>Overall Progress ({currentLevelIdx + 1}/{GAME_LEVELS.length})</span>
             <span>{Math.round(calculateProgress())}%</span>
           </div>
           <div className="w-full bg-slate-800 rounded-full h-2.5 shadow-inner overflow-hidden">
-            <div 
-              className="bg-gradient-to-r from-cyan-400 via-blue-500 to-indigo-500 h-full transition-all duration-500 ease-out"
-              style={{ width: `${calculateProgress()}%` }}
-            ></div>
+            <div className="bg-gradient-to-r from-cyan-400 via-blue-500 to-indigo-500 h-full transition-all duration-500 ease-out" style={{ width: `${calculateProgress()}%` }}></div>
           </div>
         </div>
 
-        <div className="bg-slate-900 border border-slate-800 rounded-3xl shadow-2xl overflow-hidden mb-6 flex flex-col">
+        <div className="bg-slate-900 border border-slate-800 rounded-3xl shadow-2xl overflow-hidden mb-6 flex flex-col relative">
           <div className={`px-6 py-4 border-b flex justify-between items-center ${currentLevel.isBoss ? 'bg-red-950/40 border-red-900/50' : 'bg-slate-800/80 border-slate-700'}`}>
             <h2 className="text-lg font-bold flex items-center gap-2 truncate pr-4">
               {currentLevel.isBoss ? <ShieldAlert className="w-5 h-5 text-red-500 flex-shrink-0" /> : <BookOpen className="w-5 h-5 text-cyan-400 flex-shrink-0" />}
@@ -550,6 +852,34 @@ export default function ExamReviewGame() {
             <p className="text-lg md:text-xl leading-relaxed font-medium text-blue-100">
               {renderFormattedText(currentStep.question)}
             </p>
+
+            <div className="mt-6 flex flex-wrap gap-3">
+              {!hasAnswered && currentStep.hint && (
+                <button 
+                  onClick={() => setShowHint(!showHint)}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all ${showHint ? 'bg-yellow-900/40 text-yellow-400 border border-yellow-500/50' : 'bg-slate-800 text-slate-400 border border-slate-700 hover:bg-slate-700'}`}
+                >
+                  <Lightbulb className="w-4 h-4" />
+                  {showHint ? '隱藏提示' : '需要提示 (Hint)？'}
+                </button>
+              )}
+              
+              <button 
+                onClick={() => setShowScratchpad(true)}
+                className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold bg-cyan-900/40 text-cyan-400 border border-cyan-500/50 hover:bg-cyan-800/50 transition-all"
+              >
+                <PenTool className="w-4 h-4" />
+                🖊️ 草稿紙 (計數/畫 K-map)
+              </button>
+            </div>
+
+            {!hasAnswered && currentStep.hint && showHint && (
+              <div className="mt-4 p-4 bg-yellow-950/30 border border-yellow-900/50 rounded-xl animate-in fade-in slide-in-from-top-2 duration-300">
+                <p className="text-yellow-200/90 text-base leading-relaxed">
+                  💡 <strong>提示：</strong>{renderFormattedText(currentStep.hint)}
+                </p>
+              </div>
+            )}
           </div>
         </div>
 
@@ -566,12 +896,7 @@ export default function ExamReviewGame() {
             }
 
             return (
-              <button
-                key={idx}
-                onClick={() => handleOptionClick(option)}
-                disabled={hasAnswered}
-                className={`group relative p-5 rounded-2xl border-2 text-left font-mono text-xl transition-all ${btnClass}`}
-              >
+              <button key={idx} onClick={() => handleOptionClick(option)} disabled={hasAnswered} className={`group relative p-5 rounded-2xl border-2 text-left font-mono text-xl transition-all ${btnClass}`}>
                 <div className="flex items-center justify-between">
                   <span>{renderFormattedText(option)}</span>
                   {hasAnswered && isCorrectOption && <CheckCircle2 className="w-6 h-6 text-emerald-400 flex-shrink-0 ml-2" />}
@@ -603,7 +928,7 @@ export default function ExamReviewGame() {
             <ChevronLeft className="w-6 h-6" /> 上一步
           </button>
           <button onClick={handleNext} disabled={!hasAnswered} className={`flex-[2] flex justify-center items-center gap-3 py-5 rounded-2xl transition-all font-bold text-lg ${hasAnswered ? 'bg-white text-slate-900 hover:bg-slate-200 shadow-[0_0_20px_rgba(255,255,255,0.1)]' : 'bg-slate-800 text-slate-500 border border-slate-700 cursor-not-allowed'}`}>
-            {currentLevelIdx === NEW_TASKS.length - 1 && currentStepIdx === currentLevel.steps.length - 1 ? '查看成績報告' : '下一步'}
+            {currentLevelIdx === GAME_LEVELS.length - 1 && currentStepIdx === currentLevel.steps.length - 1 ? '查看成績報告' : '下一步'}
             <ChevronRight className="w-6 h-6" />
           </button>
         </div>
