@@ -23,6 +23,49 @@ const renderFormattedText = (text) => {
   });
 };
 
+// --- MUX 圖解組件 (全新加入) ---
+const MuxDiagram = ({ type, inputs, selectors }) => {
+  return (
+    <div className="flex flex-col items-center justify-center p-6 bg-slate-950 border border-purple-500/30 rounded-2xl shadow-[0_0_20px_rgba(168,85,247,0.15)] relative overflow-hidden">
+      <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-purple-500 to-fuchsia-500 opacity-50"></div>
+      <h4 className="text-purple-400 font-bold mb-6 text-sm tracking-widest">{type} MUX 圖解</h4>
+      <div className="flex items-center">
+        {/* Data Inputs */}
+        <div className="flex flex-col gap-3 mr-2">
+          {inputs.map((inp, i) => (
+            <div key={i} className="flex items-center justify-end">
+              <span className="text-slate-400 font-mono text-xs w-6 text-right mr-2">{inp}</span>
+              <div className="w-6 h-0.5 bg-slate-600"></div>
+            </div>
+          ))}
+        </div>
+        {/* MUX Body */}
+        <div 
+          className="relative border-2 border-purple-500/80 rounded-lg bg-slate-900/80 flex items-center justify-center shadow-[0_0_15px_rgba(168,85,247,0.3)]" 
+          style={{ width: '70px', height: `${inputs.length * 24 + 16}px`}}
+        >
+          <span className="text-purple-300 font-bold rotate-90 tracking-widest whitespace-nowrap text-xs">{type} MUX</span>
+          {/* Selectors */}
+          <div className="absolute -bottom-8 left-0 right-0 flex justify-center gap-3">
+            {selectors.map((sel, i) => (
+              <div key={i} className="flex flex-col items-center">
+                <div className="w-0.5 h-5 bg-yellow-500/80"></div>
+                <span className="text-yellow-400 font-mono text-[10px] mt-1">{sel}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+        {/* Output */}
+        <div className="flex items-center ml-2">
+          <div className="w-8 h-0.5 bg-emerald-500/80"></div>
+          <span className="text-emerald-400 font-mono font-bold text-xs ml-2">Output (F)</span>
+        </div>
+      </div>
+      <div className="mt-8"></div>
+    </div>
+  );
+};
+
 // 18大關卡，囊括所有 Q1-Q4，SOP/POS 同 MUX 極度深化！
 const GAME_LEVELS = [
   {
@@ -338,7 +381,7 @@ export default function ExamReviewGame() {
   const [showScratchpad, setShowScratchpad] = useState(false);
 
   useEffect(() => {
-    const savedData = localStorage.getItem('sehs3313-exam-save-v10');
+    const savedData = localStorage.getItem('sehs3313-exam-save-v11');
     if (savedData) {
       try {
         const parsed = JSON.parse(savedData);
@@ -358,7 +401,7 @@ export default function ExamReviewGame() {
   useEffect(() => {
     if (Object.keys(answers).length > 0 || currentLevelIdx > 0 || Object.keys(scratchpads).length > 0) {
       const dataToSave = { answers, currentLevelIdx, currentStepIdx, scratchpads };
-      localStorage.setItem('sehs3313-exam-save-v10', JSON.stringify(dataToSave));
+      localStorage.setItem('sehs3313-exam-save-v11', JSON.stringify(dataToSave));
       setHasSaveFile(true);
       if (view === 'game') {
         setSaveStatus('💾 自動存檔中...');
@@ -435,7 +478,7 @@ export default function ExamReviewGame() {
       setView('game');
       setIsMenuOpen(false);
       setHasSaveFile(false);
-      localStorage.removeItem('sehs3313-exam-save-v10');
+      localStorage.removeItem('sehs3313-exam-save-v11');
     }
   };
 
@@ -791,7 +834,7 @@ export default function ExamReviewGame() {
                   <table className="w-full text-center border-collapse min-w-[300px]">
                     <thead>
                       <tr className="border-b border-slate-700 text-slate-400">
-                        <th className="p-3 border-r border-slate-700">AB \ CD</th>
+                        <th className="p-3 border-r border-slate-700">AB \\ CD</th>
                         <th className="p-3">00</th><th className="p-3">01</th><th className="p-3">11</th><th className="p-3">10</th>
                       </tr>
                     </thead>
@@ -839,44 +882,30 @@ export default function ExamReviewGame() {
                 大考最鍾意俾 3 個變數 (A,B,C)，要你用 4-to-1 MUX 做。做法係將 A, B 駁去 Selectors，留低 C 作為 Inputs。
               </p>
               
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mt-6">
-                <div className="bg-slate-950 p-5 rounded-2xl border border-slate-700 shadow-inner">
-                  <h4 className="text-emerald-400 font-bold mb-3 border-b border-emerald-900/50 pb-2">題解 8：4-to-1 MUX 推導法則</h4>
-                  <p className="text-slate-400 text-sm mb-4">兩行一組，觀察 F 同 C 嘅關係：</p>
-                  <ul className="font-mono text-base space-y-4">
-                    <li className="bg-slate-900 p-3 rounded-lg border-l-4 border-cyan-500">
-                      C=0 → F=0, C=1 → F=1<br/><span className="text-cyan-400">F同C一樣 → 駁去 C</span>
-                    </li>
-                    <li className="bg-slate-900 p-3 rounded-lg border-l-4 border-red-500">
-                      C=0 → F=1, C=1 → F=0<br/><span className="text-red-400">F同C相反 → 駁去 C'</span>
-                    </li>
-                    <li className="bg-slate-900 p-3 rounded-lg border-l-4 border-slate-500">
-                      C=0 → F=0, C=1 → F=0<br/><span className="text-slate-400">永遠係0 → 駁去 0 (GND)</span>
-                    </li>
-                    <li className="bg-slate-900 p-3 rounded-lg border-l-4 border-yellow-500">
-                      C=0 → F=1, C=1 → F=1<br/><span className="text-yellow-400">永遠係1 → 駁去 1 (Vcc)</span>
-                    </li>
-                  </ul>
+              <div className="bg-slate-950 p-5 rounded-2xl border border-slate-700 shadow-inner mt-6">
+                <h4 className="text-emerald-400 font-bold mb-3 border-b border-emerald-900/50 pb-2">題解 8：4-to-1 MUX 推導法則</h4>
+                <p className="text-slate-400 text-sm mb-4">兩行一組，觀察 F 同 C 嘅關係：</p>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="bg-slate-900 p-3 rounded-lg border-l-4 border-cyan-500 font-mono text-sm">
+                    C=0 → F=0, C=1 → F=1<br/><span className="text-cyan-400">F同C一樣 → 駁去 C</span>
+                  </div>
+                  <div className="bg-slate-900 p-3 rounded-lg border-l-4 border-red-500 font-mono text-sm">
+                    C=0 → F=1, C=1 → F=0<br/><span className="text-red-400">F同C相反 → 駁去 C'</span>
+                  </div>
+                  <div className="bg-slate-900 p-3 rounded-lg border-l-4 border-slate-500 font-mono text-sm">
+                    C=0 → F=0, C=1 → F=0<br/><span className="text-slate-400">永遠係0 → 駁去 0 (GND)</span>
+                  </div>
+                  <div className="bg-slate-900 p-3 rounded-lg border-l-4 border-yellow-500 font-mono text-sm">
+                    C=0 → F=1, C=1 → F=1<br/><span className="text-yellow-400">永遠係1 → 駁去 1 (Vcc)</span>
+                  </div>
                 </div>
+              </div>
 
-                <div className="bg-slate-900/50 p-5 rounded-2xl border border-slate-700 flex flex-col items-center justify-center">
-                  <h4 className="text-xl font-bold text-purple-400 mb-6">8-to-1 MUX 圖解</h4>
-                  <div className="flex items-center justify-center font-mono text-sm md:text-base">
-                    <div className="flex flex-col gap-1 items-end mr-3 text-slate-400">
-                       <span>D0 ─</span><span>D1 ─</span><span>D2 ─</span><span>D3 ─</span>
-                       <span>D4 ─</span><span>D5 ─</span><span>D6 ─</span><span>D7 ─</span>
-                    </div>
-                    <div className="border-2 border-purple-500 rounded-xl py-12 px-6 flex flex-col items-center justify-center bg-slate-950 shadow-[0_0_20px_rgba(168,85,247,0.3)]">
-                       <span className="text-xl font-bold text-purple-300 rotate-90 tracking-widest whitespace-nowrap">8-TO-1 MUX</span>
-                    </div>
-                    <div className="flex flex-col items-start ml-3">
-                       <span className="text-emerald-400 font-bold text-lg">─ Output (F)</span>
-                    </div>
-                  </div>
-                  <div className="flex justify-center mt-3 gap-6 text-yellow-400 font-mono font-bold text-lg">
-                     <span>│<br/>S2</span><span>│<br/>S1</span><span>│<br/>S0</span>
-                  </div>
-                </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mt-6">
+                {/* 4-to-1 MUX Component */}
+                <MuxDiagram type="4-to-1" inputs={['D0', 'D1', 'D2', 'D3']} selectors={['S1', 'S0']} />
+                {/* 8-to-1 MUX Component */}
+                <MuxDiagram type="8-to-1" inputs={['D0', 'D1', 'D2', 'D3', 'D4', 'D5', 'D6', 'D7']} selectors={['S2', 'S1', 'S0']} />
               </div>
             </div>
 
@@ -1085,33 +1114,37 @@ export default function ExamReviewGame() {
               </p>
 
               <div className="flex flex-col lg:flex-row gap-8 mt-6">
-                <div className="flex-1 bg-slate-900 p-6 rounded-2xl border border-slate-700 font-mono text-sm md:text-base text-cyan-300 overflow-x-auto shadow-inner">
-                  <span className="text-yellow-400 font-bold block mb-4">Class AB Push-Pull 電路圖</span>
-{`        + Vcc (15V)
-         |
-         +-----+
-         |     |
-        [R1]  | / C
-         |    |/
-         +----|   Q1 (NPN)
-         |    |\\
-        [D1]  | \\ E
-         |     |
- Vin ----+     +---- Vout ---- [RL]
-         |     |
-        [D2]  | / E
-         |    |/
-         +----|   Q2 (PNP)
-         |    |\\
-        [R2]  | \\ C
-         |     |
-         +-----+
-         |
-        - Vcc (-15V)`}
+                
+                {/* 高光 ASCII 電路圖 */}
+                <div className="flex-1 bg-slate-950 p-6 rounded-2xl border border-slate-700 shadow-[0_0_20px_rgba(0,0,0,0.5)] overflow-x-auto">
+                  <h4 className="text-yellow-400 font-bold mb-4 font-mono">Class AB Push-Pull 電路圖</h4>
+                  <pre className="font-mono text-xs md:text-sm leading-tight text-slate-500 whitespace-pre">
+<span className="text-red-400 font-bold">       + Vcc (15V)</span><br/>
+<span>          │</span><br/>
+<span>    ┌─────┴─────┐</span><br/>
+<span>    │           │</span><br/>
+<span className="text-yellow-400">   [R1]</span><span>       │ / C</span><br/>
+<span>    │         │/</span><br/>
+<span>    ├─────────┤   </span><span className="text-purple-300 font-bold">Q1 (NPN)</span><br/>
+<span>    │         │\</span><br/>
+<span className="text-orange-400">  [D1]</span><span>(0.7V)</span><span>  │ \ E</span><br/>
+<span>    │           │</span><br/>
+<span className="text-emerald-400 font-bold">Vin</span><span> ┼───────────┼──── </span><span className="text-emerald-400 font-bold">Vout</span><span> ──── </span><span className="text-yellow-400">[RL]</span><br/>
+<span>    │           │</span><br/>
+<span className="text-orange-400">  [D2]</span><span>(0.7V)</span><span>  │ / E</span><br/>
+<span>    │         │/</span><br/>
+<span>    ├─────────┤   </span><span className="text-purple-300 font-bold">Q2 (PNP)</span><br/>
+<span>    │         │\</span><br/>
+<span className="text-yellow-400">   [R2]</span><span>       │ \ C</span><br/>
+<span>    │           │</span><br/>
+<span>    └─────┬─────┘</span><br/>
+<span>          │</span><br/>
+<span className="text-blue-400 font-bold">       - Vcc (-15V)</span>
+                  </pre>
                 </div>
 
                 <div className="flex-1 space-y-4">
-                  <div className="bg-slate-950 p-5 rounded-2xl border border-emerald-900/30 shadow-inner">
+                  <div className="bg-slate-900/80 p-5 rounded-2xl border border-emerald-900/30 shadow-inner">
                     <h4 className="text-emerald-400 font-bold mb-3 border-b border-emerald-900/50 pb-2">題解 15：Efficiency (η) 實戰計算</h4>
                     <p className="text-slate-400 text-sm mb-4">已知 V<sub>out(rms)</sub> = 5V, R<sub>L</sub> = 10Ω, V<sub>cc</sub> = 15V</p>
                     <ul className="space-y-3 font-mono text-sm md:text-base text-slate-300">
