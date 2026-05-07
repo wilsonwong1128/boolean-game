@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { CheckCircle2, XCircle, ChevronRight, ChevronLeft, RefreshCw, BookOpen, ShieldAlert, MonitorPlay, FileText, Save, Cpu, Menu, X, AlertTriangle, BarChart2, Filter, Play, LogOut, BookMarked, Lightbulb, PenTool, Trash2 } from 'lucide-react';
+import { CheckCircle2, XCircle, ChevronRight, ChevronLeft, RefreshCw, BookOpen, ShieldAlert, MonitorPlay, FileText, Save, Cpu, Menu, X, AlertTriangle, BarChart2, Filter, Play, LogOut, BookMarked, Lightbulb, PenTool, Trash2, Type } from 'lucide-react';
 
 // 強大數學排版解析器
 const renderFormattedText = (text) => {
@@ -135,92 +135,199 @@ const GAME_LEVELS = [
   }
 ];
 
-// 畫板組件 (Scratchpad)
-const Scratchpad = ({ onClose }) => {
+// 強大草稿紙組件 (支援文字與繪畫，獨立存檔)
+const Scratchpad = ({ onClose, currentStep, initialData, onSave }) => {
   const canvasRef = useRef(null);
+  const containerRef = useRef(null);
+  const inputRef = useRef(null);
+  
   const [isDrawing, setIsDrawing] = useState(false);
+  const [tool, setTool] = useState('pen'); // 'pen' 或 'text'
+  const [textInput, setTextInput] = useState({ visible: false, x: 0, y: 0, text: '' });
 
+  // 初始化畫板大小及背景
   useEffect(() => {
     const canvas = canvasRef.current;
-    // 設定畫板大小
-    canvas.width = window.innerWidth * 0.9;
-    canvas.height = window.innerHeight * 0.7;
-    const ctx = canvas.getContext('2d');
-    ctx.strokeStyle = '#22d3ee'; // cyan-400
-    ctx.lineWidth = 3;
-    ctx.lineCap = 'round';
+    if (!canvas || !containerRef.current) return;
     
-    // 防止背景捲動
-    document.body.style.overflow = 'hidden';
-    return () => { document.body.style.overflow = 'auto'; };
-  }, []);
+    // 將 canvas 大小設定為容器的實際像素大小，避免拉伸
+    canvas.width = containerRef.current.offsetWidth;
+    canvas.height = containerRef.current.offsetHeight;
+    const ctx = canvas.getContext('2d');
+    
+    // 填滿深色背景
+    ctx.fillStyle = '#0f172a'; // slate-950
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-  const startDrawing = (e) => {
-    const { offsetX, offsetY } = getCoordinates(e);
-    const ctx = canvasRef.current.getContext('2d');
-    ctx.beginPath();
-    ctx.moveTo(offsetX, offsetY);
-    setIsDrawing(true);
+    // 載入之前畫落嘅資料 (如果有)
+    if (initialData) {
+      const img = new Image();
+      img.onload = () => {
+        ctx.drawImage(img, 0, 0);
+      };
+      img.src = initialData;
+    }
+    
+    document.body.style.overflow = 'hidden'; // 防止手機滑動畫板時捲動頁面
+    return () => { document.body.style.overflow = 'auto'; };
+  }, [initialData]);
+
+  const saveCanvas = () => {
+    if (canvasRef.current) {
+      onSave(canvasRef.current.toDataURL('image/png'));
+    }
+  };
+
+  const getCoordinates = (e) => {
+    const canvas = canvasRef.current;
+    const rect = canvas.getBoundingClientRect();
+    if (e.touches && e.touches.length > 0) {
+      return {
+        offsetX: e.touches[0].clientX - rect.left,
+        offsetY: e.touches[0].clientY - rect.top
+      };
+    }
+    return {
+      offsetX: e.clientX - rect.left,
+      offsetY: e.clientY - rect.top
+    };
+  };
+
+  const startInteraction = (e) => {
+    // 如果有打緊字，先幫佢印落畫板
+    if (textInput.visible) {
+      stampText();
+      return; 
+    }
+
+    if (tool === 'pen') {
+      const { offsetX, offsetY } = getCoordinates(e);
+      const ctx = canvasRef.current.getContext('2d');
+      ctx.beginPath();
+      ctx.moveTo(offsetX, offsetY);
+      setIsDrawing(true);
+    } else if (tool === 'text') {
+      const { offsetX, offsetY } = getCoordinates(e);
+      setTextInput({ visible: true, x: offsetX, y: offsetY, text: '' });
+      setTimeout(() => inputRef.current?.focus(), 50);
+    }
   };
 
   const draw = (e) => {
-    if (!isDrawing) return;
-    e.preventDefault(); // 防止手機掃動時拉郁個網頁
+    if (!isDrawing || tool !== 'pen') return;
+    e.preventDefault(); 
     const { offsetX, offsetY } = getCoordinates(e);
     const ctx = canvasRef.current.getContext('2d');
+    ctx.strokeStyle = '#22d3ee'; // cyan-400
+    ctx.lineWidth = 3;
+    ctx.lineCap = 'round';
     ctx.lineTo(offsetX, offsetY);
     ctx.stroke();
   };
 
   const stopDrawing = () => {
-    if (!isDrawing) return;
+    if (!isDrawing || tool !== 'pen') return;
     const ctx = canvasRef.current.getContext('2d');
     ctx.closePath();
     setIsDrawing(false);
+    saveCanvas(); // 畫完一筆就 Save
+  };
+
+  const stampText = () => {
+    if (textInput.visible && textInput.text.trim() !== '') {
+      const ctx = canvasRef.current.getContext('2d');
+      ctx.font = 'bold 20px monospace';
+      ctx.fillStyle = '#22d3ee';
+      ctx.fillText(textInput.text, textInput.x, textInput.y + 16); 
+      saveCanvas(); // 打完字 Save
+    }
+    setTextInput({ visible: false, x: 0, y: 0, text: '' });
   };
 
   const clearCanvas = () => {
-    const canvas = canvasRef.current;
-    const ctx = canvas.getContext('2d');
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-  };
-
-  const getCoordinates = (e) => {
-    if (e.touches && e.touches.length > 0) {
-      const bcr = canvasRef.current.getBoundingClientRect();
-      return {
-        offsetX: e.touches[0].clientX - bcr.left,
-        offsetY: e.touches[0].clientY - bcr.top
-      };
+    if(window.confirm("確定要清空呢一題嘅草稿？")) {
+      const canvas = canvasRef.current;
+      const ctx = canvas.getContext('2d');
+      ctx.fillStyle = '#0f172a';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      saveCanvas();
     }
-    return { offsetX: e.nativeEvent.offsetX, offsetY: e.nativeEvent.offsetY };
   };
 
   return (
-    <div className="fixed inset-0 bg-slate-950/95 backdrop-blur-md z-[100] flex flex-col items-center justify-center animate-in fade-in duration-200">
-      <div className="w-[90vw] flex justify-between items-center mb-4">
-        <h2 className="text-xl font-bold text-cyan-400 flex items-center gap-2"><PenTool className="w-5 h-5"/> 隱藏草稿紙</h2>
-        <div className="flex gap-4">
-          <button onClick={clearCanvas} className="p-2 bg-red-900/40 text-red-400 rounded-lg hover:bg-red-900/60 transition-colors flex items-center gap-2">
-            <Trash2 className="w-4 h-4"/> 清除
-          </button>
-          <button onClick={onClose} className="p-2 bg-slate-800 text-slate-300 rounded-lg hover:bg-slate-700 transition-colors">
+    <div className="fixed inset-0 bg-slate-950/95 backdrop-blur-md z-[100] flex flex-col items-center justify-center p-4 animate-in fade-in duration-200">
+      
+      {/* 頂部工具列與題目顯示 */}
+      <div className="w-full max-w-4xl flex flex-col mb-2 bg-slate-900 rounded-2xl border border-slate-700 overflow-hidden shadow-2xl">
+        <div className="flex justify-between items-center p-4 border-b border-slate-700/50 bg-slate-800/50">
+          <h2 className="text-lg font-bold text-cyan-400 flex items-center gap-2">
+            <PenTool className="w-5 h-5"/> 獨立草稿紙
+          </h2>
+          <button onClick={onClose} className="p-2 bg-slate-800 text-slate-300 rounded-lg hover:bg-slate-700 hover:text-white transition-colors">
             <X className="w-5 h-5"/>
           </button>
         </div>
+        
+        <div className="p-4 bg-slate-800/30 text-sm md:text-base">
+          <p className="text-cyan-400 font-mono font-bold mb-1">{renderFormattedText(currentStep.currentExpression)}</p>
+          <p className="text-slate-300">{renderFormattedText(currentStep.question)}</p>
+        </div>
+        
+        <div className="p-3 bg-slate-900 border-t border-slate-800 flex justify-between items-center">
+          <div className="flex gap-2">
+            <button 
+              onClick={() => { setTool('pen'); stampText(); }}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all ${tool === 'pen' ? 'bg-cyan-900/50 text-cyan-400 border border-cyan-500/50' : 'bg-slate-800 text-slate-400 border border-slate-700 hover:bg-slate-700'}`}
+            >
+              <PenTool className="w-4 h-4"/> 畫筆
+            </button>
+            <button 
+              onClick={() => { setTool('text'); setIsDrawing(false); }}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all ${tool === 'text' ? 'bg-yellow-900/50 text-yellow-400 border border-yellow-500/50' : 'bg-slate-800 text-slate-400 border border-slate-700 hover:bg-slate-700'}`}
+            >
+              <Type className="w-4 h-4"/> 文字
+            </button>
+          </div>
+          <button onClick={clearCanvas} className="p-2 bg-red-900/20 text-red-400 rounded-lg hover:bg-red-900/40 border border-red-900/30 transition-colors flex items-center gap-2 text-sm font-bold">
+            <Trash2 className="w-4 h-4"/> 清除
+          </button>
+        </div>
       </div>
-      <canvas
-        ref={canvasRef}
-        onMouseDown={startDrawing}
-        onMouseMove={draw}
-        onMouseUp={stopDrawing}
-        onMouseLeave={stopDrawing}
-        onTouchStart={startDrawing}
-        onTouchMove={draw}
-        onTouchEnd={stopDrawing}
-        className="bg-slate-900 border-2 border-slate-700 rounded-2xl shadow-[0_0_30px_rgba(34,211,238,0.1)] touch-none cursor-crosshair"
-      />
-      <p className="text-slate-500 mt-4 text-sm font-mono">你可以喺呢度計數或者畫 K-map (支援手機 Touch)</p>
+
+      {/* 畫板區域 */}
+      <div 
+        ref={containerRef} 
+        className="relative w-full max-w-4xl h-[50vh] bg-slate-900 border-2 border-slate-700 rounded-2xl overflow-hidden shadow-[0_0_30px_rgba(34,211,238,0.1)] touch-none cursor-crosshair"
+      >
+        <canvas
+          ref={canvasRef}
+          onMouseDown={startInteraction}
+          onMouseMove={draw}
+          onMouseUp={stopDrawing}
+          onMouseLeave={stopDrawing}
+          onTouchStart={startInteraction}
+          onTouchMove={draw}
+          onTouchEnd={stopDrawing}
+          className="absolute inset-0 w-full h-full"
+        />
+        
+        {/* 文字輸入框 Overlay */}
+        {textInput.visible && (
+          <input
+            ref={inputRef}
+            type="text"
+            value={textInput.text}
+            onChange={(e) => setTextInput({...textInput, text: e.target.value})}
+            onBlur={stampText}
+            onKeyDown={(e) => { if (e.key === 'Enter') stampText(); }}
+            style={{ left: textInput.x, top: textInput.y }}
+            className="absolute bg-transparent text-[#22d3ee] font-mono text-[20px] font-bold outline-none border-b border-cyan-500/50 p-0 m-0 z-10 min-w-[20px]"
+            autoFocus
+            placeholder="打字..."
+          />
+        )}
+      </div>
+      <p className="text-slate-500 mt-4 text-xs font-mono">畫完或打完字會自動存檔。每題草稿獨立保存。</p>
     </div>
   );
 };
@@ -229,23 +336,26 @@ export default function ExamReviewGame() {
   const [currentLevelIdx, setCurrentLevelIdx] = useState(0);
   const [currentStepIdx, setCurrentStepIdx] = useState(0);
   const [answers, setAnswers] = useState({});
+  const [scratchpads, setScratchpads] = useState({}); // 新增：保存所有草稿
+  
   const [view, setView] = useState('start');
   const [saveStatus, setSaveStatus] = useState('');
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [showOnlyMistakes, setShowOnlyMistakes] = useState(false);
   const [hasSaveFile, setHasSaveFile] = useState(false);
   
-  // Hint & Scratchpad States
   const [showHint, setShowHint] = useState(false);
   const [showScratchpad, setShowScratchpad] = useState(false);
 
+  // 讀取 LocalStorage 存檔 (更新至 v9)
   useEffect(() => {
-    const savedData = localStorage.getItem('sehs3313-exam-save-v8');
+    const savedData = localStorage.getItem('sehs3313-exam-save-v9');
     if (savedData) {
       try {
         const parsed = JSON.parse(savedData);
-        if (Object.keys(parsed.answers || {}).length > 0) {
-          setAnswers(parsed.answers);
+        if (Object.keys(parsed.answers || {}).length > 0 || Object.keys(parsed.scratchpads || {}).length > 0) {
+          setAnswers(parsed.answers || {});
+          setScratchpads(parsed.scratchpads || {});
           setCurrentLevelIdx(parsed.currentLevelIdx || 0);
           setCurrentStepIdx(parsed.currentStepIdx || 0);
           setHasSaveFile(true);
@@ -256,10 +366,11 @@ export default function ExamReviewGame() {
     }
   }, []);
 
+  // 自動存檔
   useEffect(() => {
-    if (Object.keys(answers).length > 0 || currentLevelIdx > 0) {
-      const dataToSave = { answers, currentLevelIdx, currentStepIdx };
-      localStorage.setItem('sehs3313-exam-save-v8', JSON.stringify(dataToSave));
+    if (Object.keys(answers).length > 0 || currentLevelIdx > 0 || Object.keys(scratchpads).length > 0) {
+      const dataToSave = { answers, currentLevelIdx, currentStepIdx, scratchpads };
+      localStorage.setItem('sehs3313-exam-save-v9', JSON.stringify(dataToSave));
       setHasSaveFile(true);
       if (view === 'game') {
         setSaveStatus('💾 自動存檔中...');
@@ -267,7 +378,7 @@ export default function ExamReviewGame() {
         return () => clearTimeout(timer);
       }
     }
-  }, [answers, currentLevelIdx, currentStepIdx, view]);
+  }, [answers, currentLevelIdx, currentStepIdx, scratchpads, view]);
 
   const currentLevel = GAME_LEVELS[currentLevelIdx];
   const currentStep = currentLevel?.steps[currentStepIdx];
@@ -304,7 +415,7 @@ export default function ExamReviewGame() {
   };
 
   const handleNext = () => {
-    setShowHint(false); // Reset Hint
+    setShowHint(false); 
     if (currentStepIdx < currentLevel.steps.length - 1) {
       setCurrentStepIdx(c => c + 1);
     } else if (currentLevelIdx < GAME_LEVELS.length - 1) {
@@ -317,7 +428,7 @@ export default function ExamReviewGame() {
   };
 
   const handlePrev = () => {
-    setShowHint(false); // Reset Hint
+    setShowHint(false); 
     if (currentStepIdx > 0) {
       setCurrentStepIdx(c => c - 1);
     } else if (currentLevelIdx > 0) {
@@ -327,15 +438,16 @@ export default function ExamReviewGame() {
   };
 
   const handleRestart = () => {
-    if(window.confirm("確定要重新開始？所有存檔將會被清除。")) {
+    if(window.confirm("確定要重置所有紀錄？你嘅答題同所有草稿都會被清空。")) {
       setAnswers({});
+      setScratchpads({}); // 清空草稿
       setCurrentLevelIdx(0);
       setCurrentStepIdx(0);
       setShowHint(false);
       setView('game');
       setIsMenuOpen(false);
       setHasSaveFile(false);
-      localStorage.removeItem('sehs3313-exam-save-v8');
+      localStorage.removeItem('sehs3313-exam-save-v9');
     }
   };
 
@@ -800,7 +912,14 @@ export default function ExamReviewGame() {
         </div>
       )}
 
-      {showScratchpad && <Scratchpad onClose={() => setShowScratchpad(false)} />}
+      {showScratchpad && (
+        <Scratchpad 
+          onClose={() => setShowScratchpad(false)} 
+          currentStep={currentStep}
+          initialData={scratchpads[stepKey]}
+          onSave={(data) => setScratchpads(prev => ({...prev, [stepKey]: data}))}
+        />
+      )}
 
       <div className="max-w-3xl w-full">
         <div className="flex justify-between items-center mb-8">
